@@ -64,11 +64,11 @@ ipcMain.handle('db-run', async (event, sql, params) => {
   return await db.run(sql, params);
 });
 
-ipcMain.handle('create-project', async (event, project: { title: string; startDate?: string; dueDate?: string }) => {
+ipcMain.handle('create-project', async (event, project: { title: string; startDate?: string; dueDate?: string; ownerId?: number }) => {
   const db = getDatabase();
   const result = await db.run(
-    'INSERT INTO Project (Title, StartDate, DueDate) VALUES (?, ?, ?)',
-    [project.title, project.startDate || null, project.dueDate || null]
+    'INSERT INTO Project (Title, StartDate, DueDate, OwnerId) VALUES (?, ?, ?, ?)',
+    [project.title, project.startDate || null, project.dueDate || null, project.ownerId || null]
   );
   return result;
 });
@@ -78,13 +78,94 @@ ipcMain.handle('get-project', async (event, id: number) => {
   return await db.get('SELECT * FROM Project WHERE Id = ?', [id]);
 });
 
-ipcMain.handle('update-project', async (event, project: { id: number; title: string; startDate?: string; dueDate?: string }) => {
+ipcMain.handle('update-project', async (event, project: { id: number; title: string; startDate?: string; dueDate?: string; ownerId?: number }) => {
   const db = getDatabase();
   const result = await db.run(
-    'UPDATE Project SET Title = ?, StartDate = ?, DueDate = ? WHERE Id = ?',
-    [project.title, project.startDate || null, project.dueDate || null, project.id]
+    'UPDATE Project SET Title = ?, StartDate = ?, DueDate = ?, OwnerId = ? WHERE Id = ?',
+    [project.title, project.startDate || null, project.dueDate || null, project.ownerId || null, project.id]
   );
   return result;
+});
+
+// Person IPC Handlers
+ipcMain.handle('get-people', async () => {
+  const db = getDatabase();
+  return await db.all('SELECT * FROM Person ORDER BY Name ASC');
+});
+
+ipcMain.handle('create-person', async (event, person: { name: string; email: string; color?: string }) => {
+  const db = getDatabase();
+  return await db.run(
+    'INSERT INTO Person (Name, Email, Color) VALUES (?, ?, ?)',
+    [person.name, person.email, person.color || null]
+  );
+});
+
+ipcMain.handle('update-person', async (event, person: { id: number; name: string; email: string; color?: string }) => {
+  const db = getDatabase();
+  return await db.run(
+    'UPDATE Person SET Name = ?, Email = ?, Color = ? WHERE Id = ?',
+    [person.name, person.email, person.color || null, person.id]
+  );
+});
+
+ipcMain.handle('delete-person', async (event, id: number) => {
+  const db = getDatabase();
+  return await db.run('DELETE FROM Person WHERE Id = ?', [id]);
+});
+
+// Type IPC Handlers
+ipcMain.handle('get-types', async () => {
+  const db = getDatabase();
+  return await db.all('SELECT * FROM "Type" ORDER BY Label ASC');
+});
+
+ipcMain.handle('create-type', async (event, type: { label: string; color: string; icon: string }) => {
+  const db = getDatabase();
+  return await db.run(
+    'INSERT INTO "Type" (Label, Color, Icon) VALUES (?, ?, ?)',
+    [type.label, type.color, type.icon]
+  );
+});
+
+ipcMain.handle('update-type', async (event, type: { id: number; label: string; color: string; icon: string }) => {
+  const db = getDatabase();
+  return await db.run(
+    'UPDATE "Type" SET Label = ?, Color = ?, Icon = ? WHERE Id = ?',
+    [type.label, type.color, type.icon, type.id]
+  );
+});
+
+ipcMain.handle('delete-type', async (event, id: number) => {
+  const db = getDatabase();
+  return await db.run('DELETE FROM "Type" WHERE Id = ?', [id]);
+});
+
+// Status IPC Handlers
+ipcMain.handle('get-statuses', async () => {
+  const db = getDatabase();
+  return await db.all('SELECT * FROM Status ORDER BY Id ASC');
+});
+
+ipcMain.handle('create-status', async (event, status: { label: string; isComplete: boolean }) => {
+  const db = getDatabase();
+  return await db.run(
+    'INSERT INTO Status (Label, IsComplete) VALUES (?, ?)',
+    [status.label, status.isComplete ? 1 : 0]
+  );
+});
+
+ipcMain.handle('update-status', async (event, status: { id: number; label: string; isComplete: boolean }) => {
+  const db = getDatabase();
+  return await db.run(
+    'UPDATE Status SET Label = ?, IsComplete = ? WHERE Id = ?',
+    [status.label, status.isComplete ? 1 : 0, status.id]
+  );
+});
+
+ipcMain.handle('delete-status', async (event, id: number) => {
+  const db = getDatabase();
+  return await db.run('DELETE FROM Status WHERE Id = ?', [id]);
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Project } from '../global';
+import { Project, Person } from '../types';
 
 const ProjectView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Edit Modal & Form State
@@ -13,29 +14,35 @@ const ProjectView: React.FC = () => {
   const [editTitle, setEditTitle] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editOwnerId, setEditOwnerId] = useState<number | ''>('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const fetchProject = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     try {
-      const data = await window.projects.get(Number(id));
-      setProject(data);
-      if (data) {
-        setEditTitle(data.Title);
-        setEditStartDate(data.StartDate || '');
-        setEditDueDate(data.DueDate || '');
+      const [projectData, peopleData] = await Promise.all([
+        window.projects.get(Number(id)),
+        window.people.getAll()
+      ]);
+      setProject(projectData);
+      setPeople(peopleData);
+      if (projectData) {
+        setEditTitle(projectData.Title);
+        setEditStartDate(projectData.StartDate || '');
+        setEditDueDate(projectData.DueDate || '');
+        setEditOwnerId(projectData.OwnerId || '');
       }
     } catch (error) {
-      console.error('Failed to fetch project:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
+    fetchData();
+  }, [fetchData]);
 
   const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,10 +55,11 @@ const ProjectView: React.FC = () => {
         title: editTitle,
         startDate: editStartDate || undefined,
         dueDate: editDueDate || undefined,
+        ownerId: editOwnerId === '' ? undefined : editOwnerId,
       });
       
       setShowEditModal(false);
-      await fetchProject();
+      await fetchData();
     } catch (error) {
       console.error('Failed to update project:', error);
       alert('Error updating project. Please try again.');
@@ -105,6 +113,10 @@ const ProjectView: React.FC = () => {
               </h2>
               <div className="text-muted small ms-5 d-flex gap-4">
                 <span>
+                  <i className="fas fa-user me-2 text-info"></i>
+                  <strong>Owner:</strong> {people.find(p => p.Id === project.OwnerId)?.Name || 'Not assigned'}
+                </span>
+                <span>
                   <i className="fas fa-calendar-alt me-2 text-primary"></i>
                   <strong>Start:</strong> {project.StartDate ? new Date(project.StartDate).toLocaleDateString() : 'Not set'}
                 </span>
@@ -149,6 +161,22 @@ const ProjectView: React.FC = () => {
                         required
                         autoFocus
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="editOwner" className="form-label">Project Owner</label>
+                      <select
+                        className="form-select no-drag"
+                        id="editOwner"
+                        value={editOwnerId}
+                        onChange={(e) => setEditOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
+                      >
+                        <option value="">No owner assigned</option>
+                        {people.map((person) => (
+                          <option key={person.Id} value={person.Id}>
+                            {person.Name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="row">
                       <div className="col-md-6 mb-3">

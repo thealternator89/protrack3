@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Project } from '../global';
+import { Project, Person } from '../types';
 
 const ProjectList: React.FC = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal & Form State
@@ -12,23 +13,28 @@ const ProjectList: React.FC = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
+  const [newOwnerId, setNewOwnerId] = useState<number | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchProjects = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await window.database.query<Project>('SELECT * FROM Project ORDER BY Title ASC');
-      setProjects(data);
+      const [projectsData, peopleData] = await Promise.all([
+        window.database.query<Project>('SELECT * FROM Project ORDER BY Title ASC'),
+        window.people.getAll()
+      ]);
+      setProjects(projectsData);
+      setPeople(peopleData);
     } catch (error) {
-      console.error('Failed to fetch projects:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    fetchData();
+  }, [fetchData]);
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,16 +46,18 @@ const ProjectList: React.FC = () => {
         title: newTitle,
         startDate: newStartDate || undefined,
         dueDate: newDueDate || undefined,
+        ownerId: newOwnerId === '' ? undefined : newOwnerId,
       });
       
       // Reset form and close modal
       setNewTitle('');
       setNewStartDate('');
       setNewDueDate('');
+      setNewOwnerId('');
       setShowModal(false);
       
       // Refresh list
-      await fetchProjects();
+      await fetchData();
     } catch (error) {
       console.error('Failed to create project:', error);
       alert('Error creating project. Please try again.');
@@ -66,12 +74,20 @@ const ProjectList: React.FC = () => {
             <i className="fas fa-folder-open text-primary me-2"></i>
             Projects
           </h2>
-          <button 
-            className="btn btn-primary no-drag"
-            onClick={() => setShowModal(true)}
-          >
-            <i className="fas fa-plus me-1"></i> New Project
-          </button>
+          <div className="d-flex">
+            <button 
+              className="btn btn-outline-secondary no-drag me-2"
+              onClick={() => navigate('/settings')}
+            >
+              <i className="fas fa-cog me-1"></i> Settings
+            </button>
+            <button 
+              className="btn btn-primary no-drag"
+              onClick={() => setShowModal(true)}
+            >
+              <i className="fas fa-plus me-1"></i> New Project
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -100,6 +116,10 @@ const ProjectList: React.FC = () => {
                       {project.Title}
                     </h5>
                     <div className="text-muted small mb-3">
+                      <div className="mb-1 text-truncate" title={people.find(p => p.Id === project.OwnerId)?.Name || 'No owner assigned'}>
+                        <i className="fas fa-user me-2 w-16 text-center text-info"></i>
+                        {people.find(p => p.Id === project.OwnerId)?.Name || 'No owner'}
+                      </div>
                       {project.StartDate && (
                         <div className="mb-1">
                           <i className="fas fa-calendar-alt me-2 w-16 text-center"></i>
@@ -159,6 +179,22 @@ const ProjectList: React.FC = () => {
                         required
                         autoFocus
                       />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="projectOwner" className="form-label">Project Owner</label>
+                      <select
+                        className="form-select no-drag"
+                        id="projectOwner"
+                        value={newOwnerId}
+                        onChange={(e) => setNewOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
+                      >
+                        <option value="">No owner assigned</option>
+                        {people.map((person) => (
+                          <option key={person.Id} value={person.Id}>
+                            {person.Name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="row">
                       <div className="col-md-6 mb-3">
