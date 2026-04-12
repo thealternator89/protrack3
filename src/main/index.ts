@@ -73,6 +73,20 @@ ipcMain.handle('create-project', async (event, project: { title: string; startDa
   return result;
 });
 
+ipcMain.handle('get-project', async (event, id: number) => {
+  const db = getDatabase();
+  return await db.get('SELECT * FROM Project WHERE Id = ?', [id]);
+});
+
+ipcMain.handle('update-project', async (event, project: { id: number; title: string; startDate?: string; dueDate?: string }) => {
+  const db = getDatabase();
+  const result = await db.run(
+    'UPDATE Project SET Title = ?, StartDate = ?, DueDate = ? WHERE Id = ?',
+    [project.title, project.startDate || null, project.dueDate || null, project.id]
+  );
+  return result;
+});
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.

@@ -14,6 +14,8 @@ export interface DatabaseAPI {
 
 export interface ProjectsAPI {
   create: (project: { title: string; startDate?: string; dueDate?: string }) => Promise<any>;
+  get: (id: number) => Promise<Project>;
+  update: (project: { id: number; title: string; startDate?: string; dueDate?: string }) => Promise<any>;
 }
 
 declare global {
