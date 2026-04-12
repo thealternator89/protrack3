@@ -169,13 +169,38 @@ ipcMain.handle('delete-status', async (event, id: number) => {
 });
 
 // Task IPC Handlers
-ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
+ipcMain.handle('get-task', async (event, id: number) => {
   const db = getDatabase();
-  const tasks = await db.all(`
-    SELECT t.*, p.Name as AssigneeName, s.Label as StatusLabel, s.IsComplete
+  const task = await db.get(`
+    SELECT t.*, p.Name as AssigneeName, s.Label as StatusLabel, s.IsComplete, pt.Title as ParentTitle
     FROM Task t
     LEFT JOIN Person p ON t.AssigneeId = p.Id
     LEFT JOIN Status s ON t.StatusId = s.Id
+    LEFT JOIN Task pt ON t.ParentId = pt.Id
+    WHERE t.Id = ?
+  `, [id]);
+
+  if (!task) return null;
+
+  const prerequisites = await db.all(`
+    SELECT tp.*, t.Title as PrerequisiteTaskTitle, s.IsComplete as PrerequisiteIsComplete
+    FROM TaskPrerequisite tp
+    JOIN Task t ON tp.PrerequisiteTaskId = t.Id
+    LEFT JOIN Status s ON t.StatusId = s.Id
+    WHERE tp.TaskId = ?
+  `, [id]);
+
+  return { task, prerequisites };
+});
+
+ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
+  const db = getDatabase();
+  const tasks = await db.all(`
+    SELECT t.*, p.Name as AssigneeName, s.Label as StatusLabel, s.IsComplete, pt.Title as ParentTitle
+    FROM Task t
+    LEFT JOIN Person p ON t.AssigneeId = p.Id
+    LEFT JOIN Status s ON t.StatusId = s.Id
+    LEFT JOIN Task pt ON t.ParentId = pt.Id
     WHERE t.ProjectId = ?
     ORDER BY t.Id ASC
   `, [projectId]);
@@ -208,6 +233,30 @@ ipcMain.handle('create-task', async (event, task: {
       task.assigneeId || null, 
       task.statusId || null
     ]
+  );
+});
+
+ipcMain.handle('add-prerequisite', async (event, { taskId, prerequisiteTaskId, prerequisiteType }) => {
+  const db = getDatabase();
+  return await db.run(
+    'INSERT INTO TaskPrerequisite (TaskId, PrerequisiteTaskId, PrerequisiteType) VALUES (?, ?, ?)',
+    [taskId, prerequisiteTaskId, prerequisiteType]
+  );
+});
+
+ipcMain.handle('update-prerequisite', async (event, { taskId, prerequisiteTaskId, prerequisiteType }) => {
+  const db = getDatabase();
+  return await db.run(
+    'UPDATE TaskPrerequisite SET PrerequisiteType = ? WHERE TaskId = ? AND PrerequisiteTaskId = ?',
+    [prerequisiteType, taskId, prerequisiteTaskId]
+  );
+});
+
+ipcMain.handle('delete-prerequisite', async (event, { taskId, prerequisiteTaskId }) => {
+  const db = getDatabase();
+  return await db.run(
+    'DELETE FROM TaskPrerequisite WHERE TaskId = ? AND PrerequisiteTaskId = ?',
+    [taskId, prerequisiteTaskId]
   );
 });
 

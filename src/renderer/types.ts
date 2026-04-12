@@ -41,6 +41,7 @@ export interface Task {
   AssigneeName?: string;
   StatusLabel?: string;
   IsComplete?: number;
+  ParentTitle?: string;
 }
 
 export interface TaskPrerequisite {
@@ -49,6 +50,7 @@ export interface TaskPrerequisite {
   PrerequisiteType: string;
   // Joined fields
   PrerequisiteIsComplete?: number;
+  PrerequisiteTaskTitle?: string;
 }
 
 export interface DatabaseAPI {
@@ -84,6 +86,7 @@ export interface StatusesAPI {
 }
 
 export interface TasksAPI {
+  get: (id: number) => Promise<{ task: Task; prerequisites: TaskPrerequisite[] }>;
   getByProject: (projectId: number) => Promise<{ tasks: Task[]; prerequisites: TaskPrerequisite[] }>;
   create: (task: { 
     title: string; 
@@ -92,6 +95,9 @@ export interface TasksAPI {
     assigneeId?: number; 
     statusId?: number 
   }) => Promise<any>;
+  addPrerequisite: (taskId: number, prerequisiteTaskId: number, prerequisiteType: string) => Promise<any>;
+  updatePrerequisite: (taskId: number, prerequisiteTaskId: number, prerequisiteType: string) => Promise<any>;
+  deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
 }
 
 declare global {

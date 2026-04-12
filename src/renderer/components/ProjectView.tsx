@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Project, Person, Task, TaskPrerequisite, Status } from '../types';
 
 const ProjectView: React.FC = () => {
@@ -174,7 +174,15 @@ const ProjectView: React.FC = () => {
                   <tr key={task.Id}>
                     <td className="text-muted small">#{task.Id}</td>
                     <td className="text-truncate">
-                      <strong>{task.Title}</strong>
+                      <Link to={`/task/${task.Id}`} className="text-decoration-none text-dark">
+                        <strong>{task.Title}</strong>
+                      </Link>
+                      {task.ParentId && (
+                        <div className="small text-muted mt-1">
+                          <i className="fas fa-level-up-alt fa-rotate-90 me-1"></i>
+                          Subtask of: <Link to={`/task/${task.ParentId}`} className="text-decoration-none">{task.ParentTitle || `Task #${task.ParentId}`}</Link>
+                        </div>
+                      )}
                       {notReady && (
                         <span className="badge bg-warning text-dark ms-2 fw-normal small">
                           <i className="fas fa-pause-circle me-1"></i>Not Ready

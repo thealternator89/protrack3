@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
+import TaskView from './components/TaskView';
 import Settings from './components/Settings';
 
 const App: React.FC = () => {
@@ -17,6 +18,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<ProjectList />} />
         <Route path="/project/:id" element={<ProjectView />} />
+        <Route path="/task/:id" element={<TaskView />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>
