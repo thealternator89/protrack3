@@ -7,6 +7,7 @@ const TaskView: React.FC = () => {
   const navigate = useNavigate();
   const [task, setTask] = useState<Task | null>(null);
   const [prerequisites, setPrerequisites] = useState<TaskPrerequisite[]>([]);
+  const [dependedOnBy, setDependedOnBy] = useState<TaskPrerequisite[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
@@ -31,6 +32,7 @@ const TaskView: React.FC = () => {
       if (data && data.task) {
         setTask(data.task);
         setPrerequisites(data.prerequisites);
+        setDependedOnBy(data.dependedOnBy || []);
         const [projectData, peopleData, statusData] = await Promise.all([
           window.projects.get(data.task.ProjectId),
           window.people.getAll(),
@@ -164,12 +166,22 @@ const TaskView: React.FC = () => {
           </nav>
 
           <div className="card shadow-sm mb-4">
-            <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-              <h2 className="mb-0 h4">{task.Title}</h2>
-              <div>
-                {task.StatusLabel && (
-                  <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fs-6 fw-normal`}>
-                    {task.StatusLabel}
+            <div className="card-header bg-white py-3">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h2 className="mb-0 h4">{task.Title}</h2>
+                <div>
+                  {task.StatusLabel && (
+                    <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fs-6 fw-normal`}>
+                      {task.StatusLabel}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                {!task.IsComplete && dependedOnBy.length > 0 && (
+                  <span className="badge bg-info text-dark fw-normal">
+                    <i className="fas fa-link me-1"></i>
+                    Prerequisite for: {dependedOnBy.length}
                   </span>
                 )}
               </div>

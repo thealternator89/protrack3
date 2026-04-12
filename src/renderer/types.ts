@@ -51,6 +51,8 @@ export interface TaskPrerequisite {
   // Joined fields
   PrerequisiteIsComplete?: number;
   PrerequisiteTaskTitle?: string;
+  DependentTaskTitle?: string;
+  DependentIsComplete?: number;
 }
 
 export interface DatabaseAPI {
@@ -86,7 +88,11 @@ export interface StatusesAPI {
 }
 
 export interface TasksAPI {
-  get: (id: number) => Promise<{ task: Task; prerequisites: TaskPrerequisite[] }>;
+  get: (id: number) => Promise<{ 
+    task: Task; 
+    prerequisites: TaskPrerequisite[];
+    dependedOnBy: TaskPrerequisite[];
+  }>;
   getByProject: (projectId: number) => Promise<{ tasks: Task[]; prerequisites: TaskPrerequisite[] }>;
   create: (task: { 
     title: string; 

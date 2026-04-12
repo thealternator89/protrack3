@@ -190,7 +190,15 @@ ipcMain.handle('get-task', async (event, id: number) => {
     WHERE tp.TaskId = ?
   `, [id]);
 
-  return { task, prerequisites };
+  const dependedOnBy = await db.all(`
+    SELECT tp.*, t.Title as DependentTaskTitle, s.IsComplete as DependentIsComplete
+    FROM TaskPrerequisite tp
+    JOIN Task t ON tp.TaskId = t.Id
+    LEFT JOIN Status s ON t.StatusId = s.Id
+    WHERE tp.PrerequisiteTaskId = ?
+  `, [id]);
+
+  return { task, prerequisites, dependedOnBy };
 });
 
 ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
@@ -205,13 +213,22 @@ ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
     ORDER BY t.Id ASC
   `, [projectId]);
 
+  // Get prerequisites where either the task or the prerequisite is in the project
+  // This ensures we have both what tasks in the project depend on, 
+  // and what depends on tasks in the project.
   const prerequisites = await db.all(`
-    SELECT tp.*, s.IsComplete as PrerequisiteIsComplete
+    SELECT tp.*, 
+           pt.Title as PrerequisiteTaskTitle, 
+           ps.IsComplete as PrerequisiteIsComplete,
+           dt.Title as DependentTaskTitle,
+           ds.IsComplete as DependentIsComplete
     FROM TaskPrerequisite tp
     JOIN Task pt ON tp.PrerequisiteTaskId = pt.Id
-    LEFT JOIN Status s ON pt.StatusId = s.Id
-    WHERE pt.ProjectId = ?
-  `, [projectId]);
+    JOIN Task dt ON tp.TaskId = dt.Id
+    LEFT JOIN Status ps ON pt.StatusId = ps.Id
+    LEFT JOIN Status ds ON dt.StatusId = ds.Id
+    WHERE pt.ProjectId = ? OR dt.ProjectId = ?
+  `, [projectId, projectId]);
 
   return { tasks, prerequisites };
 });

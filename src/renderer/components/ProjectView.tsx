@@ -170,6 +170,9 @@ const ProjectView: React.FC = () => {
             <tbody>
               {tasks.map(task => {
                 const notReady = !isReadyToStart(task) && task.StatusLabel === 'New';
+                const dependentTasks = prerequisites.filter(p => p.PrerequisiteTaskId === task.Id);
+                const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
+
                 return (
                   <tr key={task.Id}>
                     <td className="text-muted small">#{task.Id}</td>
@@ -183,14 +186,20 @@ const ProjectView: React.FC = () => {
                           Subtask of: <Link to={`/task/${task.ParentId}`} className="text-decoration-none">{task.ParentTitle || `Task #${task.ParentId}`}</Link>
                         </div>
                       )}
-                      {notReady && (
-                        <span className="badge bg-warning text-dark ms-2 fw-normal small">
-                          <i className="fas fa-pause-circle me-1"></i>Not Ready
-                        </span>
-                      )}
+                      <div className="mt-1">
+                        {notReady && (
+                          <span className="badge bg-warning text-dark me-2 fw-normal small">
+                            <i className="fas fa-pause-circle me-1"></i>Not Ready
+                          </span>
+                        )}
+                        {isPrerequisite && (
+                          <span className="badge bg-info text-dark fw-normal small">
+                            <i className="fas fa-link me-1"></i>
+                            Prerequisite for: {dependentTasks.length}
+                          </span>
+                        )}                      </div>
                     </td>
-                    <td>
-                      {task.AssigneeName ? (
+                    <td>                      {task.AssigneeName ? (
                         <span className="badge bg-info text-dark fw-normal d-inline-block text-truncate" style={{ maxWidth: '200px' }}>{task.AssigneeName}</span>
                       ) : (
                         <span className="text-muted small italic">Unassigned</span>
