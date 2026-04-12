@@ -39,3 +39,14 @@ contextBridge.exposeInMainWorld('statuses', {
     ipcRenderer.invoke('update-status', status),
   delete: (id: number) => ipcRenderer.invoke('delete-status', id),
 });
+
+contextBridge.exposeInMainWorld('tasks', {
+  getByProject: (projectId: number) => ipcRenderer.invoke('get-project-tasks', projectId),
+  create: (task: { 
+    title: string; 
+    projectId: number; 
+    description?: string; 
+    assigneeId?: number; 
+    statusId?: number 
+  }) => ipcRenderer.invoke('create-task', task),
+});

@@ -168,6 +168,49 @@ ipcMain.handle('delete-status', async (event, id: number) => {
   return await db.run('DELETE FROM Status WHERE Id = ?', [id]);
 });
 
+// Task IPC Handlers
+ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
+  const db = getDatabase();
+  const tasks = await db.all(`
+    SELECT t.*, p.Name as AssigneeName, s.Label as StatusLabel, s.IsComplete
+    FROM Task t
+    LEFT JOIN Person p ON t.AssigneeId = p.Id
+    LEFT JOIN Status s ON t.StatusId = s.Id
+    WHERE t.ProjectId = ?
+    ORDER BY t.Id ASC
+  `, [projectId]);
+
+  const prerequisites = await db.all(`
+    SELECT tp.*, s.IsComplete as PrerequisiteIsComplete
+    FROM TaskPrerequisite tp
+    JOIN Task pt ON tp.PrerequisiteTaskId = pt.Id
+    LEFT JOIN Status s ON pt.StatusId = s.Id
+    WHERE pt.ProjectId = ?
+  `, [projectId]);
+
+  return { tasks, prerequisites };
+});
+
+ipcMain.handle('create-task', async (event, task: { 
+  title: string; 
+  projectId: number; 
+  description?: string; 
+  assigneeId?: number; 
+  statusId?: number 
+}) => {
+  const db = getDatabase();
+  return await db.run(
+    'INSERT INTO Task (Title, ProjectId, Description, AssigneeId, StatusId) VALUES (?, ?, ?, ?, ?)',
+    [
+      task.title, 
+      task.projectId, 
+      task.description || null, 
+      task.assigneeId || null, 
+      task.statusId || null
+    ]
+  );
+});
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.

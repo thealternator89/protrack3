@@ -27,6 +27,30 @@ export interface Status {
   IsComplete: number; // SQLite stored as 0 or 1
 }
 
+export interface Task {
+  Id: number;
+  Title: string;
+  Description: string | null;
+  ProjectId: number;
+  AssigneeId: number | null;
+  StatusId: number | null;
+  TypeId: number | null;
+  ParentId: number | null;
+  RemoteTaskId: number | null;
+  // Joined fields
+  AssigneeName?: string;
+  StatusLabel?: string;
+  IsComplete?: number;
+}
+
+export interface TaskPrerequisite {
+  TaskId: number;
+  PrerequisiteTaskId: number;
+  PrerequisiteType: string;
+  // Joined fields
+  PrerequisiteIsComplete?: number;
+}
+
 export interface DatabaseAPI {
   query: <T = any>(sql: string, params?: any[]) => Promise<T[]>;
   run: (sql: string, params?: any[]) => Promise<any>;
@@ -59,6 +83,17 @@ export interface StatusesAPI {
   delete: (id: number) => Promise<any>;
 }
 
+export interface TasksAPI {
+  getByProject: (projectId: number) => Promise<{ tasks: Task[]; prerequisites: TaskPrerequisite[] }>;
+  create: (task: { 
+    title: string; 
+    projectId: number; 
+    description?: string; 
+    assigneeId?: number; 
+    statusId?: number 
+  }) => Promise<any>;
+}
+
 declare global {
   interface Window {
     database: DatabaseAPI;
@@ -66,5 +101,6 @@ declare global {
     people: PeopleAPI;
     types: TypesAPI;
     statuses: StatusesAPI;
+    tasks: TasksAPI;
   }
 }

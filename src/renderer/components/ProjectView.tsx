@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Project, Person } from '../types';
+import { Project, Person, Task, TaskPrerequisite, Status } from '../types';
 
 const ProjectView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [prerequisites, setPrerequisites] = useState<TaskPrerequisite[]>([]);
+  const [statuses, setStatuses] = useState<Status[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Edit Modal & Form State
@@ -17,16 +20,34 @@ const ProjectView: React.FC = () => {
   const [editOwnerId, setEditOwnerId] = useState<number | ''>('');
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Add Task Modal State
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<number | ''>('');
+  const [newTaskStatusId, setNewTaskStatusId] = useState<number | ''>('');
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+
   const fetchData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     try {
-      const [projectData, peopleData] = await Promise.all([
+      const [projectData, peopleData, taskData, statusData] = await Promise.all([
         window.projects.get(Number(id)),
-        window.people.getAll()
+        window.people.getAll(),
+        window.tasks.getByProject(Number(id)),
+        window.statuses.getAll()
       ]);
       setProject(projectData);
       setPeople(peopleData);
+      setTasks(taskData.tasks);
+      setPrerequisites(taskData.prerequisites);
+      setStatuses(statusData);
+      
+      if (statusData.length > 0 && newTaskStatusId === '') {
+        setNewTaskStatusId(statusData[0].Id);
+      }
+
       if (projectData) {
         setEditTitle(projectData.Title);
         setEditStartDate(projectData.StartDate || '');
@@ -38,7 +59,7 @@ const ProjectView: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, newTaskStatusId]);
 
   useEffect(() => {
     fetchData();
@@ -68,6 +89,36 @@ const ProjectView: React.FC = () => {
     }
   };
 
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !newTaskTitle.trim()) return;
+
+    setIsCreatingTask(true);
+    try {
+      await window.tasks.create({
+        title: newTaskTitle.trim(),
+        projectId: Number(id),
+        description: newTaskDescription.trim() || undefined,
+        assigneeId: newTaskAssigneeId === '' ? undefined : newTaskAssigneeId,
+        statusId: newTaskStatusId === '' ? undefined : (newTaskStatusId as number),
+      });
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+      setNewTaskAssigneeId('');
+      // Reset status to first available
+      if (statuses.length > 0) {
+        setNewTaskStatusId(statuses[0].Id);
+      }
+      setShowAddTaskModal(false);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to create task:', error);
+      alert('Error creating task. Please try again.');
+    } finally {
+      setIsCreatingTask(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="main-content text-center mt-5">
@@ -89,6 +140,73 @@ const ProjectView: React.FC = () => {
     );
   }
 
+  // Task categorization logic
+  const isReadyToStart = (task: Task) => {
+    const taskPrereqs = prerequisites.filter(p => p.TaskId === task.Id);
+    if (taskPrereqs.length === 0) return true;
+
+    return taskPrereqs.every(p => 
+      p.PrerequisiteIsComplete === 1 || p.PrerequisiteType === 'End'
+    );
+  };
+
+  const TaskTable = ({ tasks }: { tasks: Task[] }) => (
+    <div className="mb-5">
+      {tasks.length === 0 ? (
+        <div className="alert alert-light border text-center py-4">
+          No tasks found for this project.
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="table table-hover align-middle border shadow-sm rounded" style={{ tableLayout: 'fixed' }}>
+            <thead className="table-light">
+              <tr>
+                <th style={{ width: '60px' }}>ID</th>
+                <th>Title</th>
+                <th style={{ width: '150px' }}>Assignee</th>
+                <th style={{ width: '150px' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasks.map(task => {
+                const notReady = !isReadyToStart(task) && task.StatusLabel === 'New';
+                return (
+                  <tr key={task.Id}>
+                    <td className="text-muted small">#{task.Id}</td>
+                    <td className="text-truncate">
+                      <strong>{task.Title}</strong>
+                      {notReady && (
+                        <span className="badge bg-warning text-dark ms-2 fw-normal small">
+                          <i className="fas fa-pause-circle me-1"></i>Not Ready
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {task.AssigneeName ? (
+                        <span className="badge bg-info text-dark fw-normal d-inline-block text-truncate" style={{ maxWidth: '200px' }}>{task.AssigneeName}</span>
+                      ) : (
+                        <span className="text-muted small italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td>
+                      {task.StatusLabel ? (
+                        <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fw-normal d-inline-block text-truncate`}>
+                          {task.StatusLabel}
+                        </span>
+                      ) : (
+                        <span className="text-muted small italic">No status</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="main-content">
       <div className="container mt-4">
@@ -104,7 +222,7 @@ const ProjectView: React.FC = () => {
           </button>
         </div>
 
-        <div className="card shadow-sm border-0">
+        <div className="card shadow-sm border-0 mb-4">
           <div className="card-body p-4">
             <div className="mb-4">
               <h2 className="card-title mb-1">
@@ -127,15 +245,110 @@ const ProjectView: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-5 bg-light rounded shadow-sm d-flex align-items-center justify-content-center w-100">
-              <div className="text-center text-muted">
-                <i className="fas fa-tasks fa-3x mb-3 d-block"></i>
-                <h5 className="mb-0">Tasks coming soon...</h5>
-              </div>
+            <div className="d-flex justify-content-between align-items-center mb-4 pt-3 border-top">
+              <h4 className="mb-0">Tasks</h4>
+              <button 
+                className="btn btn-primary no-drag"
+                onClick={() => setShowAddTaskModal(true)}
+              >
+                <i className="fas fa-plus me-1"></i> Add Task
+              </button>
             </div>
+
+            <TaskTable tasks={tasks} />
           </div>
         </div>
       </div>
+
+      {/* Add Task Modal */}
+      {showAddTaskModal && (
+        <>
+          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content shadow">
+                <div className="modal-header">
+                  <h5 className="modal-title">Add New Task</h5>
+                  <button type="button" className="btn-close no-drag" onClick={() => setShowAddTaskModal(false)}></button>
+                </div>
+                <form onSubmit={handleAddTask}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label htmlFor="taskTitle" className="form-label">Task Title</label>
+                      <input
+                        type="text"
+                        className="form-control no-drag"
+                        id="taskTitle"
+                        placeholder="What needs to be done?"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="taskDescription" className="form-label">Description</label>
+                      <textarea
+                        className="form-control no-drag"
+                        id="taskDescription"
+                        rows={3}
+                        placeholder="Add more details..."
+                        value={newTaskDescription}
+                        onChange={(e) => setNewTaskDescription(e.target.value)}
+                      />
+                    </div>
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="taskAssignee" className="form-label">Assignee</label>
+                        <select
+                          className="form-select no-drag"
+                          id="taskAssignee"
+                          value={newTaskAssigneeId}
+                          onChange={(e) => setNewTaskAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">Unassigned</option>
+                          {people.map((person) => (
+                            <option key={person.Id} value={person.Id}>
+                              {person.Name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="taskStatus" className="form-label">Status</label>
+                        <select
+                          className="form-select no-drag"
+                          id="taskStatus"
+                          value={newTaskStatusId}
+                          onChange={(e) => setNewTaskStatusId(Number(e.target.value))}
+                          required
+                        >
+                          {statuses.map((status) => (
+                            <option key={status.Id} value={status.Id}>
+                              {status.Label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowAddTaskModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary no-drag" disabled={isCreatingTask}>
+                      {isCreatingTask ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Creating...
+                        </>
+                      ) : 'Add Task'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
 
       {/* Edit Project Modal */}
       {showEditModal && (
@@ -159,7 +372,6 @@ const ProjectView: React.FC = () => {
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
                         required
-                        autoFocus
                       />
                     </div>
                     <div className="mb-3">
