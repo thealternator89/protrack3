@@ -1,6 +1,6 @@
 {
-  "name": "devops-toolkit",
-  "productName": "devops-toolkit",
+  "name": "protrack3",
+  "productName": "ProTrack 3",
   "version": "1.0.0",
   "description": "My Electron application description",
   "main": ".webpack/main",

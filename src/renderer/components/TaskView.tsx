@@ -123,7 +123,7 @@ const TaskView: React.FC = () => {
 
   const openEditModal = (prereq: TaskPrerequisite) => {
     setEditingPrereq(prereq);
-    setPrereqType(prereq.PrerequisiteType);
+    setPrereqType(prereq.Type);
     setIsDeleteConfirming(false);
     setShowEditPrereqModal(true);
   };
@@ -161,14 +161,19 @@ const TaskView: React.FC = () => {
                   <Link to={`/project/${project.Id}`}>{project.Title}</Link>
                 </li>
               )}
-              <li className="breadcrumb-item active" aria-current="page">Task #{task.Id}</li>
+              <li className="breadcrumb-item active" aria-current="page">
+                {project ? `${project.Prefix}-${task.DisplayId}` : `Task #${task.Id}`}
+              </li>
             </ol>
           </nav>
 
           <div className="card shadow-sm mb-4">
             <div className="card-header bg-white py-3">
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <h2 className="mb-0 h4">{task.Title}</h2>
+                <h2 className="mb-0 h4">
+                  <span className="text-muted small fw-bold me-2">{project?.Prefix}-{task.DisplayId}</span>
+                  {task.Title}
+                </h2>
                 <div>
                   {task.StatusLabel && (
                     <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fs-6 fw-normal`}>
@@ -248,7 +253,7 @@ const TaskView: React.FC = () => {
                         </div>
                         <div className="d-flex align-items-center gap-3">
                           <span className="badge bg-light text-dark border fw-normal">
-                            {prereq.PrerequisiteType}
+                            {prereq.Type}
                           </span>
                           <button 
                             className="btn btn-sm btn-link p-0 no-drag"

@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PeopleTab from './settings/PeopleTab';
 import StatusesTab from './settings/StatusesTab';
-import TypesTab from './settings/TypesTab';
 
-type TabType = 'types' | 'statuses' | 'people';
+type TabType = 'statuses' | 'people';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('types');
+  const [activeTab, setActiveTab] = useState<TabType>('statuses');
 
   return (
     <div className="main-content">
@@ -31,14 +30,6 @@ const Settings: React.FC = () => {
             <ul className="nav nav-tabs card-header-tabs">
               <li className="nav-item">
                 <button 
-                  className={`nav-link no-drag ${activeTab === 'types' ? 'active fw-bold' : ''}`}
-                  onClick={() => setActiveTab('types')}
-                >
-                  <i className="fas fa-tags me-2"></i> Task Types
-                </button>
-              </li>
-              <li className="nav-item">
-                <button 
                   className={`nav-link no-drag ${activeTab === 'statuses' ? 'active fw-bold' : ''}`}
                   onClick={() => setActiveTab('statuses')}
                 >
@@ -56,7 +47,6 @@ const Settings: React.FC = () => {
             </ul>
           </div>
           <div className="card-body p-4">
-            {activeTab === 'types' && <TypesTab />}
             {activeTab === 'statuses' && <StatusesTab />}
             {activeTab === 'people' && <PeopleTab />}
           </div>

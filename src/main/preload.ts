@@ -6,10 +6,10 @@ contextBridge.exposeInMainWorld('database', {
 });
 
 contextBridge.exposeInMainWorld('projects', {
-  create: (project: { title: string; startDate?: string; dueDate?: string; ownerId?: number }) => 
+  create: (project: { title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => 
     ipcRenderer.invoke('create-project', project),
   get: (id: number) => ipcRenderer.invoke('get-project', id),
-  update: (project: { id: number; title: string; startDate?: string; dueDate?: string; ownerId?: number }) => 
+  update: (project: { id: number; title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => 
     ipcRenderer.invoke('update-project', project),
 });
 
@@ -22,20 +22,11 @@ contextBridge.exposeInMainWorld('people', {
   delete: (id: number) => ipcRenderer.invoke('delete-person', id),
 });
 
-contextBridge.exposeInMainWorld('types', {
-  getAll: () => ipcRenderer.invoke('get-types'),
-  create: (type: { label: string; color: string; icon: string }) => 
-    ipcRenderer.invoke('create-type', type),
-  update: (type: { id: number; label: string; color: string; icon: string }) => 
-    ipcRenderer.invoke('update-type', type),
-  delete: (id: number) => ipcRenderer.invoke('delete-type', id),
-});
-
 contextBridge.exposeInMainWorld('statuses', {
   getAll: () => ipcRenderer.invoke('get-statuses'),
-  create: (status: { label: string; isComplete: boolean }) => 
+  create: (status: { label: string; isNew: boolean; isComplete: boolean }) => 
     ipcRenderer.invoke('create-status', status),
-  update: (status: { id: number; label: string; isComplete: boolean }) => 
+  update: (status: { id: number; label: string; isNew: boolean; isComplete: boolean }) => 
     ipcRenderer.invoke('update-status', status),
   delete: (id: number) => ipcRenderer.invoke('delete-status', id),
 });
@@ -44,16 +35,18 @@ contextBridge.exposeInMainWorld('tasks', {
   get: (id: number) => ipcRenderer.invoke('get-task', id),
   getByProject: (projectId: number) => ipcRenderer.invoke('get-project-tasks', projectId),
   create: (task: { 
+    displayId: number;
     title: string; 
     projectId: number; 
+    sortOrder: number;
     description?: string; 
     assigneeId?: number; 
     statusId?: number 
   }) => ipcRenderer.invoke('create-task', task),
-  addPrerequisite: (taskId: number, prerequisiteTaskId: number, prerequisiteType: string) => 
-    ipcRenderer.invoke('add-prerequisite', { taskId, prerequisiteTaskId, prerequisiteType }),
-  updatePrerequisite: (taskId: number, prerequisiteTaskId: number, prerequisiteType: string) => 
-    ipcRenderer.invoke('update-prerequisite', { taskId, prerequisiteTaskId, prerequisiteType }),
+  addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 
+    ipcRenderer.invoke('add-prerequisite', { taskId, prerequisiteTaskId, type }),
+  updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 
+    ipcRenderer.invoke('update-prerequisite', { taskId, prerequisiteTaskId, type }),
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => 
     ipcRenderer.invoke('delete-prerequisite', { taskId, prerequisiteTaskId }),
 });

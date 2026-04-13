@@ -15,6 +15,7 @@ const ProjectView: React.FC = () => {
   // Edit Modal & Form State
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTitle, setEditTitle] = useState('');
+  const [editPrefix, setEditPrefix] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editOwnerId, setEditOwnerId] = useState<number | ''>('');
@@ -45,11 +46,13 @@ const ProjectView: React.FC = () => {
       setStatuses(statusData);
       
       if (statusData.length > 0 && newTaskStatusId === '') {
-        setNewTaskStatusId(statusData[0].Id);
+        const newStatus = statusData.find(s => s.IsNew === 1) || statusData[0];
+        setNewTaskStatusId(newStatus.Id);
       }
 
       if (projectData) {
         setEditTitle(projectData.Title);
+        setEditPrefix(projectData.Prefix);
         setEditStartDate(projectData.StartDate || '');
         setEditDueDate(projectData.DueDate || '');
         setEditOwnerId(projectData.OwnerId || '');
@@ -67,13 +70,14 @@ const ProjectView: React.FC = () => {
 
   const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!project || !editTitle.trim()) return;
+    if (!project || !editTitle.trim() || !editPrefix.trim()) return;
 
     setIsUpdating(true);
     try {
       await window.projects.update({
         id: project.Id,
         title: editTitle,
+        prefix: editPrefix.toUpperCase(),
         startDate: editStartDate || undefined,
         dueDate: editDueDate || undefined,
         ownerId: editOwnerId === '' ? undefined : editOwnerId,
@@ -95,9 +99,15 @@ const ProjectView: React.FC = () => {
 
     setIsCreatingTask(true);
     try {
+      // Simple logic for next DisplayId and SortOrder
+      const nextDisplayId = tasks.length > 0 ? Math.max(...tasks.map(t => t.DisplayId)) + 1 : 1;
+      const nextSortOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.SortOrder)) + 10 : 10;
+
       await window.tasks.create({
+        displayId: nextDisplayId,
         title: newTaskTitle.trim(),
         projectId: Number(id),
+        sortOrder: nextSortOrder,
         description: newTaskDescription.trim() || undefined,
         assigneeId: newTaskAssigneeId === '' ? undefined : newTaskAssigneeId,
         statusId: newTaskStatusId === '' ? undefined : (newTaskStatusId as number),
@@ -105,9 +115,10 @@ const ProjectView: React.FC = () => {
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskAssigneeId('');
-      // Reset status to first available
+      // Reset status to "New" status if available
       if (statuses.length > 0) {
-        setNewTaskStatusId(statuses[0].Id);
+        const newStatus = statuses.find(s => s.IsNew === 1) || statuses[0];
+        setNewTaskStatusId(newStatus.Id);
       }
       setShowAddTaskModal(false);
       await fetchData();
@@ -146,7 +157,7 @@ const ProjectView: React.FC = () => {
     if (taskPrereqs.length === 0) return true;
 
     return taskPrereqs.every(p => 
-      p.PrerequisiteIsComplete === 1 || p.PrerequisiteType === 'End'
+      p.PrerequisiteIsComplete === 1 || p.Type === 'End'
     );
   };
 
@@ -161,7 +172,7 @@ const ProjectView: React.FC = () => {
           <table className="table table-hover align-middle border shadow-sm rounded" style={{ tableLayout: 'fixed' }}>
             <thead className="table-light">
               <tr>
-                <th style={{ width: '60px' }}>ID</th>
+                <th style={{ width: '80px' }}>ID</th>
                 <th>Title</th>
                 <th style={{ width: '150px' }}>Assignee</th>
                 <th style={{ width: '150px' }}>Status</th>
@@ -169,13 +180,13 @@ const ProjectView: React.FC = () => {
             </thead>
             <tbody>
               {tasks.map(task => {
-                const notReady = !isReadyToStart(task) && task.StatusLabel === 'New';
+                const notReady = !isReadyToStart(task) && !!statuses.find(s => s.Id === task.StatusId && s.IsNew === 1);
                 const dependentTasks = prerequisites.filter(p => p.PrerequisiteTaskId === task.Id);
                 const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
 
                 return (
                   <tr key={task.Id}>
-                    <td className="text-muted small">#{task.Id}</td>
+                    <td className="text-muted small fw-bold">{project.Prefix}-{task.DisplayId}</td>
                     <td className="text-truncate">
                       <Link to={`/task/${task.Id}`} className="text-decoration-none text-dark">
                         <strong>{task.Title}</strong>
@@ -242,10 +253,13 @@ const ProjectView: React.FC = () => {
         <div className="card shadow-sm border-0 mb-4">
           <div className="card-body p-4">
             <div className="mb-4">
-              <h2 className="card-title mb-1">
-                <i className="fas fa-folder-open text-primary me-3"></i>
-                {project.Title}
-              </h2>
+              <div className="d-flex align-items-center mb-1">
+                <i className="fas fa-folder-open text-primary me-3 fa-2x"></i>
+                <h2 className="card-title mb-0">
+                  {project.Title}
+                </h2>
+                <span className="badge bg-light text-dark border ms-3">{project.Prefix}</span>
+              </div>
               <div className="text-muted small ms-5 d-flex gap-4">
                 <span>
                   <i className="fas fa-user me-2 text-info"></i>
@@ -379,17 +393,31 @@ const ProjectView: React.FC = () => {
                 </div>
                 <form onSubmit={handleUpdateProject}>
                   <div className="modal-body">
-                    <div className="mb-3">
-                      <label htmlFor="projectTitle" className="form-label">Project Title</label>
-                      <input
-                        type="text"
-                        className="form-control no-drag"
-                        id="projectTitle"
-                        placeholder="Enter project name"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        required
-                      />
+                    <div className="row g-3">
+                      <div className="col-md-9 mb-3">
+                        <label htmlFor="projectTitle" className="form-label">Project Title</label>
+                        <input
+                          type="text"
+                          className="form-control no-drag"
+                          id="projectTitle"
+                          placeholder="Enter project name"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-3 mb-3">
+                        <label htmlFor="projectPrefix" className="form-label">Prefix</label>
+                        <input
+                          type="text"
+                          className="form-control no-drag text-uppercase"
+                          id="projectPrefix"
+                          placeholder="ABC"
+                          value={editPrefix}
+                          onChange={(e) => setEditPrefix(e.target.value.substring(0, 5))}
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="mb-3">
                       <label htmlFor="editOwner" className="form-label">Project Owner</label>

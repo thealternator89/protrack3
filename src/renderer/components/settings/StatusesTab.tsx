@@ -8,6 +8,7 @@ const StatusesTab: React.FC = () => {
   // Form state
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [label, setLabel] = useState('');
+  const [isNew, setIsNew] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
 
   const fetchStatuses = async () => {
@@ -30,9 +31,9 @@ const StatusesTab: React.FC = () => {
     e.preventDefault();
     try {
       if (isEditing) {
-        await window.statuses.update({ id: isEditing, label, isComplete });
+        await window.statuses.update({ id: isEditing, label, isNew, isComplete });
       } else {
-        await window.statuses.create({ label, isComplete });
+        await window.statuses.create({ label, isNew, isComplete });
       }
       resetForm();
       await fetchStatuses();
@@ -45,6 +46,7 @@ const StatusesTab: React.FC = () => {
   const handleEdit = (status: Status) => {
     setIsEditing(status.Id);
     setLabel(status.Label);
+    setIsNew(status.IsNew === 1);
     setIsComplete(status.IsComplete === 1);
   };
 
@@ -62,6 +64,7 @@ const StatusesTab: React.FC = () => {
   const resetForm = () => {
     setIsEditing(null);
     setLabel('');
+    setIsNew(false);
     setIsComplete(false);
   };
 
@@ -73,7 +76,7 @@ const StatusesTab: React.FC = () => {
         </div>
         <div className="card-body">
           <form onSubmit={handleSubmit} className="row g-3 align-items-end">
-            <div className="col-md-6">
+            <div className="col-md-5">
               <label className="form-label">Label</label>
               <input 
                 type="text" 
@@ -84,7 +87,21 @@ const StatusesTab: React.FC = () => {
                 required 
               />
             </div>
-            <div className="col-md-4 d-flex align-items-center mb-2">
+            <div className="col-md-2 d-flex align-items-center mb-2">
+              <div className="form-check form-switch">
+                <input 
+                  className="form-check-input no-drag" 
+                  type="checkbox" 
+                  id="isNewSwitch"
+                  checked={isNew}
+                  onChange={(e) => setIsNew(e.target.checked)}
+                />
+                <label className="form-check-label ms-2" htmlFor="isNewSwitch">
+                  New Status
+                </label>
+              </div>
+            </div>
+            <div className="col-md-3 d-flex align-items-center mb-2">
               <div className="form-check form-switch">
                 <input 
                   className="form-check-input no-drag" 
@@ -94,7 +111,7 @@ const StatusesTab: React.FC = () => {
                   onChange={(e) => setIsComplete(e.target.checked)}
                 />
                 <label className="form-check-label ms-2" htmlFor="isCompleteSwitch">
-                  Mark as Complete
+                  Complete Status
                 </label>
               </div>
             </div>
@@ -122,24 +139,29 @@ const StatusesTab: React.FC = () => {
             <thead className="table-light">
               <tr>
                 <th>Status Label</th>
-                <th className="text-center">Complete State</th>
                 <th className="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
               {statuses.map((status) => (
                 <tr key={status.Id}>
-                  <td className="fw-bold">{status.Label}</td>
-                  <td className="text-center">
-                    {status.IsComplete === 1 ? (
-                      <span className="badge bg-success">
-                        <i className="fas fa-check-circle me-1"></i> Completed
-                      </span>
-                    ) : (
-                      <span className="badge bg-secondary">
-                        <i className="fas fa-times-circle me-1"></i> Incomplete
-                      </span>
-                    )}
+                  <td className="fw-bold">
+                    {status.Label}
+                    <span className="ms-2">
+                      {status.IsNew === 1 ? (
+                        <span className="badge bg-info text-dark">
+                          <i className="fas fa-plus-circle me-1"></i> New
+                        </span>
+                      ) : status.IsComplete === 1 ? (
+                        <span className="badge bg-success">
+                          <i className="fas fa-check-circle me-1"></i> Completed
+                        </span>
+                      ) : (
+                        <span className="badge bg-secondary">
+                          <i className="fas fa-times-circle me-1"></i> Incomplete
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="text-end">
                     <button 
@@ -159,7 +181,7 @@ const StatusesTab: React.FC = () => {
               ))}
               {statuses.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="text-center p-4 text-muted">
+                  <td colSpan={2} className="text-center p-4 text-muted">
                     No statuses configured yet.
                   </td>
                 </tr>

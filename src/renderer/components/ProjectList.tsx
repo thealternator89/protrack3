@@ -11,6 +11,7 @@ const ProjectList: React.FC = () => {
   // Modal & Form State
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [newPrefix, setNewPrefix] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [newOwnerId, setNewOwnerId] = useState<number | ''>('');
@@ -38,12 +39,13 @@ const ProjectList: React.FC = () => {
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || !newPrefix.trim()) return;
 
     setIsSubmitting(true);
     try {
       await window.projects.create({
         title: newTitle,
+        prefix: newPrefix.toUpperCase(),
         startDate: newStartDate || undefined,
         dueDate: newDueDate || undefined,
         ownerId: newOwnerId === '' ? undefined : newOwnerId,
@@ -51,6 +53,7 @@ const ProjectList: React.FC = () => {
       
       // Reset form and close modal
       setNewTitle('');
+      setNewPrefix('');
       setNewStartDate('');
       setNewDueDate('');
       setNewOwnerId('');
@@ -112,9 +115,12 @@ const ProjectList: React.FC = () => {
               <div key={project.Id} className="col">
                 <div className="card h-100 shadow-sm border-0 project-card no-drag">
                   <div className="card-body">
-                    <h5 className="card-title text-truncate" title={project.Title}>
-                      {project.Title}
-                    </h5>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <h5 className="card-title text-truncate mb-0" title={project.Title}>
+                        {project.Title}
+                      </h5>
+                      <span className="badge bg-light text-dark border">{project.Prefix}</span>
+                    </div>
                     <div className="text-muted small mb-3">
                       <div className="mb-1 text-truncate" title={people.find(p => p.Id === project.OwnerId)?.Name || 'No owner assigned'}>
                         <i className="fas fa-user me-2 w-16 text-center text-info"></i>
@@ -167,18 +173,32 @@ const ProjectList: React.FC = () => {
                 </div>
                 <form onSubmit={handleCreateProject}>
                   <div className="modal-body">
-                    <div className="mb-3">
-                      <label htmlFor="projectTitle" className="form-label">Project Title</label>
-                      <input
-                        type="text"
-                        className="form-control no-drag"
-                        id="projectTitle"
-                        placeholder="Enter project name"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        required
-                        autoFocus
-                      />
+                    <div className="row g-3">
+                      <div className="col-md-9 mb-3">
+                        <label htmlFor="projectTitle" className="form-label">Project Title</label>
+                        <input
+                          type="text"
+                          className="form-control no-drag"
+                          id="projectTitle"
+                          placeholder="Enter project name"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          required
+                          autoFocus
+                        />
+                      </div>
+                      <div className="col-md-3 mb-3">
+                        <label htmlFor="projectPrefix" className="form-label">Prefix</label>
+                        <input
+                          type="text"
+                          className="form-control no-drag text-uppercase"
+                          id="projectPrefix"
+                          placeholder="ABC"
+                          value={newPrefix}
+                          onChange={(e) => setNewPrefix(e.target.value.substring(0, 5))}
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="mb-3">
                       <label htmlFor="projectOwner" className="form-label">Project Owner</label>

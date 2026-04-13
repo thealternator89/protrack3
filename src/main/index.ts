@@ -64,11 +64,11 @@ ipcMain.handle('db-run', async (event, sql, params) => {
   return await db.run(sql, params);
 });
 
-ipcMain.handle('create-project', async (event, project: { title: string; startDate?: string; dueDate?: string; ownerId?: number }) => {
+ipcMain.handle('create-project', async (event, project: { title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => {
   const db = getDatabase();
   const result = await db.run(
-    'INSERT INTO Project (Title, StartDate, DueDate, OwnerId) VALUES (?, ?, ?, ?)',
-    [project.title, project.startDate || null, project.dueDate || null, project.ownerId || null]
+    'INSERT INTO Project (Title, Prefix, StartDate, DueDate, OwnerId) VALUES (?, ?, ?, ?, ?)',
+    [project.title, project.prefix, project.startDate || null, project.dueDate || null, project.ownerId || null]
   );
   return result;
 });
@@ -78,11 +78,11 @@ ipcMain.handle('get-project', async (event, id: number) => {
   return await db.get('SELECT * FROM Project WHERE Id = ?', [id]);
 });
 
-ipcMain.handle('update-project', async (event, project: { id: number; title: string; startDate?: string; dueDate?: string; ownerId?: number }) => {
+ipcMain.handle('update-project', async (event, project: { id: number; title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => {
   const db = getDatabase();
   const result = await db.run(
-    'UPDATE Project SET Title = ?, StartDate = ?, DueDate = ?, OwnerId = ? WHERE Id = ?',
-    [project.title, project.startDate || null, project.dueDate || null, project.ownerId || null, project.id]
+    'UPDATE Project SET Title = ?, Prefix = ?, StartDate = ?, DueDate = ?, OwnerId = ? WHERE Id = ?',
+    [project.title, project.prefix, project.startDate || null, project.dueDate || null, project.ownerId || null, project.id]
   );
   return result;
 });
@@ -114,52 +114,25 @@ ipcMain.handle('delete-person', async (event, id: number) => {
   return await db.run('DELETE FROM Person WHERE Id = ?', [id]);
 });
 
-// Type IPC Handlers
-ipcMain.handle('get-types', async () => {
-  const db = getDatabase();
-  return await db.all('SELECT * FROM "Type" ORDER BY Label ASC');
-});
-
-ipcMain.handle('create-type', async (event, type: { label: string; color: string; icon: string }) => {
-  const db = getDatabase();
-  return await db.run(
-    'INSERT INTO "Type" (Label, Color, Icon) VALUES (?, ?, ?)',
-    [type.label, type.color, type.icon]
-  );
-});
-
-ipcMain.handle('update-type', async (event, type: { id: number; label: string; color: string; icon: string }) => {
-  const db = getDatabase();
-  return await db.run(
-    'UPDATE "Type" SET Label = ?, Color = ?, Icon = ? WHERE Id = ?',
-    [type.label, type.color, type.icon, type.id]
-  );
-});
-
-ipcMain.handle('delete-type', async (event, id: number) => {
-  const db = getDatabase();
-  return await db.run('DELETE FROM "Type" WHERE Id = ?', [id]);
-});
-
 // Status IPC Handlers
 ipcMain.handle('get-statuses', async () => {
   const db = getDatabase();
   return await db.all('SELECT * FROM Status ORDER BY Id ASC');
 });
 
-ipcMain.handle('create-status', async (event, status: { label: string; isComplete: boolean }) => {
+ipcMain.handle('create-status', async (event, status: { label: string; isNew: boolean; isComplete: boolean }) => {
   const db = getDatabase();
   return await db.run(
-    'INSERT INTO Status (Label, IsComplete) VALUES (?, ?)',
-    [status.label, status.isComplete ? 1 : 0]
+    'INSERT INTO Status (Label, IsNew, IsComplete) VALUES (?, ?, ?)',
+    [status.label, status.isNew ? 1 : 0, status.isComplete ? 1 : 0]
   );
 });
 
-ipcMain.handle('update-status', async (event, status: { id: number; label: string; isComplete: boolean }) => {
+ipcMain.handle('update-status', async (event, status: { id: number; label: string; isNew: boolean; isComplete: boolean }) => {
   const db = getDatabase();
   return await db.run(
-    'UPDATE Status SET Label = ?, IsComplete = ? WHERE Id = ?',
-    [status.label, status.isComplete ? 1 : 0, status.id]
+    'UPDATE Status SET Label = ?, IsNew = ?, IsComplete = ? WHERE Id = ?',
+    [status.label, status.isNew ? 1 : 0, status.isComplete ? 1 : 0, status.id]
   );
 });
 
@@ -210,7 +183,7 @@ ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
     LEFT JOIN Status s ON t.StatusId = s.Id
     LEFT JOIN Task pt ON t.ParentId = pt.Id
     WHERE t.ProjectId = ?
-    ORDER BY t.Id ASC
+    ORDER BY t.SortOrder ASC, t.DisplayId ASC
   `, [projectId]);
 
   // Get prerequisites where either the task or the prerequisite is in the project
@@ -234,18 +207,22 @@ ipcMain.handle('get-project-tasks', async (event, projectId: number) => {
 });
 
 ipcMain.handle('create-task', async (event, task: { 
+  displayId: number;
   title: string; 
   projectId: number; 
+  sortOrder: number;
   description?: string; 
   assigneeId?: number; 
   statusId?: number 
 }) => {
   const db = getDatabase();
   return await db.run(
-    'INSERT INTO Task (Title, ProjectId, Description, AssigneeId, StatusId) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [
+      task.displayId,
       task.title, 
       task.projectId, 
+      task.sortOrder,
       task.description || null, 
       task.assigneeId || null, 
       task.statusId || null
@@ -253,19 +230,19 @@ ipcMain.handle('create-task', async (event, task: {
   );
 });
 
-ipcMain.handle('add-prerequisite', async (event, { taskId, prerequisiteTaskId, prerequisiteType }) => {
+ipcMain.handle('add-prerequisite', async (event, { taskId, prerequisiteTaskId, type }) => {
   const db = getDatabase();
   return await db.run(
-    'INSERT INTO TaskPrerequisite (TaskId, PrerequisiteTaskId, PrerequisiteType) VALUES (?, ?, ?)',
-    [taskId, prerequisiteTaskId, prerequisiteType]
+    'INSERT INTO TaskPrerequisite (TaskId, PrerequisiteTaskId, Type) VALUES (?, ?, ?)',
+    [taskId, prerequisiteTaskId, type]
   );
 });
 
-ipcMain.handle('update-prerequisite', async (event, { taskId, prerequisiteTaskId, prerequisiteType }) => {
+ipcMain.handle('update-prerequisite', async (event, { taskId, prerequisiteTaskId, type }) => {
   const db = getDatabase();
   return await db.run(
-    'UPDATE TaskPrerequisite SET PrerequisiteType = ? WHERE TaskId = ? AND PrerequisiteTaskId = ?',
-    [prerequisiteType, taskId, prerequisiteTaskId]
+    'UPDATE TaskPrerequisite SET Type = ? WHERE TaskId = ? AND PrerequisiteTaskId = ?',
+    [type, taskId, prerequisiteTaskId]
   );
 });
 
@@ -298,6 +275,3 @@ app.on('activate', () => {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.

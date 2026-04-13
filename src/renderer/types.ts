@@ -1,6 +1,7 @@
 export interface Project {
   Id: number;
   Title: string;
+  Prefix: string;
   StartDate: string | null;
   DueDate: string | null;
   OwnerId: number | null;
@@ -14,27 +15,22 @@ export interface Person {
   Color: string | null;
 }
 
-export interface Type {
-  Id: number;
-  Label: string;
-  Color: string;
-  Icon: string;
-}
-
 export interface Status {
   Id: number;
   Label: string;
+  IsNew: number; // SQLite stored as 0 or 1
   IsComplete: number; // SQLite stored as 0 or 1
 }
 
 export interface Task {
   Id: number;
+  DisplayId: number;
   Title: string;
   Description: string | null;
+  SortOrder: number;
   ProjectId: number;
   AssigneeId: number | null;
   StatusId: number | null;
-  TypeId: number | null;
   ParentId: number | null;
   RemoteTaskId: number | null;
   // Joined fields
@@ -47,12 +43,25 @@ export interface Task {
 export interface TaskPrerequisite {
   TaskId: number;
   PrerequisiteTaskId: number;
-  PrerequisiteType: string;
+  Type: string;
   // Joined fields
   PrerequisiteIsComplete?: number;
   PrerequisiteTaskTitle?: string;
   DependentTaskTitle?: string;
   DependentIsComplete?: number;
+}
+
+export interface TaskSource {
+  Id: number;
+  Name: string;
+  Type: string;
+  Config: string;
+}
+
+export interface StatusMap {
+  TaskSourceId: number;
+  StatusId: number;
+  SourceName: string;
 }
 
 export interface DatabaseAPI {
@@ -61,9 +70,9 @@ export interface DatabaseAPI {
 }
 
 export interface ProjectsAPI {
-  create: (project: { title: string; startDate?: string; dueDate?: string; ownerId?: number }) => Promise<any>;
+  create: (project: { title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => Promise<any>;
   get: (id: number) => Promise<Project>;
-  update: (project: { id: number; title: string; startDate?: string; dueDate?: string; ownerId?: number }) => Promise<any>;
+  update: (project: { id: number; title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => Promise<any>;
 }
 
 export interface PeopleAPI {
@@ -73,17 +82,10 @@ export interface PeopleAPI {
   delete: (id: number) => Promise<any>;
 }
 
-export interface TypesAPI {
-  getAll: () => Promise<Type[]>;
-  create: (type: { label: string; color: string; icon: string }) => Promise<any>;
-  update: (type: { id: number; label: string; color: string; icon: string }) => Promise<any>;
-  delete: (id: number) => Promise<any>;
-}
-
 export interface StatusesAPI {
   getAll: () => Promise<Status[]>;
-  create: (status: { label: string; isComplete: boolean }) => Promise<any>;
-  update: (status: { id: number; label: string; isComplete: boolean }) => Promise<any>;
+  create: (status: { label: string; isNew: boolean; isComplete: boolean }) => Promise<any>;
+  update: (status: { id: number; label: string; isNew: boolean; isComplete: boolean }) => Promise<any>;
   delete: (id: number) => Promise<any>;
 }
 
@@ -95,14 +97,16 @@ export interface TasksAPI {
   }>;
   getByProject: (projectId: number) => Promise<{ tasks: Task[]; prerequisites: TaskPrerequisite[] }>;
   create: (task: { 
+    displayId: number;
     title: string; 
     projectId: number; 
+    sortOrder: number;
     description?: string; 
     assigneeId?: number; 
     statusId?: number 
   }) => Promise<any>;
-  addPrerequisite: (taskId: number, prerequisiteTaskId: number, prerequisiteType: string) => Promise<any>;
-  updatePrerequisite: (taskId: number, prerequisiteTaskId: number, prerequisiteType: string) => Promise<any>;
+  addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
+  updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
 }
 
@@ -111,7 +115,6 @@ declare global {
     database: DatabaseAPI;
     projects: ProjectsAPI;
     people: PeopleAPI;
-    types: TypesAPI;
     statuses: StatusesAPI;
     tasks: TasksAPI;
   }

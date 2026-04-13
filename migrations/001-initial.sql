@@ -6,17 +6,11 @@ CREATE TABLE Person (
     Color TEXT
 );
 
-CREATE TABLE "Type" (
-    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    Label TEXT NOT NULL,
-    Color TEXT NOT NULL,
-    Icon TEXT NOT NULL
-);
-
 CREATE TABLE Status (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     Label TEXT NOT NULL,
-    IsComplete INTEGER NOT NULL CHECK (IsComplete IN (0, 1))
+    IsNew INTEGER NOT NULL DEFAULT 0,
+    IsComplete INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE TaskSource (
@@ -29,6 +23,7 @@ CREATE TABLE TaskSource (
 CREATE TABLE Project (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
     Title TEXT NOT NULL,
+    Prefix TEXT NOT NULL,
     StartDate TEXT,
     DueDate TEXT,
     OwnerId INTEGER,
@@ -39,18 +34,18 @@ CREATE TABLE Project (
 
 CREATE TABLE Task (
     Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    DisplayId INTEGER NOT NULL,
     Title TEXT NOT NULL,
     Description TEXT,
-    ProjectId INTEGER NOT NULL,
+    SortOrder INTEGER NOT NULL,
     AssigneeId INTEGER,
+    ProjectId INTEGER NOT NULL,
     StatusId INTEGER,
-    TypeId INTEGER,
     ParentId INTEGER,
     RemoteTaskId INTEGER,
-    FOREIGN KEY (ProjectId) REFERENCES Project(Id),
     FOREIGN KEY (AssigneeId) REFERENCES Person(Id),
+    FOREIGN KEY (ProjectId) REFERENCES Project(Id),
     FOREIGN KEY (StatusId) REFERENCES Status(Id),
-    FOREIGN KEY (TypeId) REFERENCES "Type"(Id),
     FOREIGN KEY (ParentId) REFERENCES Task(Id)
 );
 
@@ -63,19 +58,10 @@ CREATE TABLE StatusMap (
     FOREIGN KEY (StatusId) REFERENCES Status(Id)
 );
 
-CREATE TABLE TypeMap (
-    TaskSourceId INTEGER NOT NULL,
-    TypeId INTEGER NOT NULL,
-    SourceName TEXT NOT NULL,
-    PRIMARY KEY (TaskSourceId, TypeId),
-    FOREIGN KEY (TaskSourceId) REFERENCES TaskSource(Id),
-    FOREIGN KEY (TypeId) REFERENCES "Type"(Id)
-);
-
 CREATE TABLE TaskPrerequisite (
     TaskId INTEGER NOT NULL,
     PrerequisiteTaskId INTEGER NOT NULL,
-    PrerequisiteType TEXT NOT NULL,
+    Type TEXT NOT NULL,
     PRIMARY KEY (TaskId, PrerequisiteTaskId),
     FOREIGN KEY (TaskId) REFERENCES Task(Id),
     FOREIGN KEY (PrerequisiteTaskId) REFERENCES Task(Id)
@@ -83,11 +69,9 @@ CREATE TABLE TaskPrerequisite (
 
 -- Down
 DROP TABLE TaskPrerequisite;
-DROP TABLE TypeMap;
 DROP TABLE StatusMap;
 DROP TABLE Task;
 DROP TABLE Project;
 DROP TABLE TaskSource;
 DROP TABLE Status;
-DROP TABLE "Type";
 DROP TABLE Person;
