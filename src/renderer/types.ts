@@ -106,6 +106,14 @@ export interface TasksAPI {
     statusId?: number;
     parentId?: number;
   }) => Promise<any>;
+  update: (task: { 
+    id: number;
+    title: string; 
+    description?: string; 
+    assigneeId?: number; 
+    statusId?: number;
+    parentId?: number;
+  }) => Promise<any>;
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;

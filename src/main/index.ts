@@ -221,17 +221,38 @@ ipcMain.handle('create-task', async (event, task: {
     'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId, ParentId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
       task.displayId,
-      task.title, 
-      task.projectId, 
+      task.title,
+      task.projectId,
       task.sortOrder,
-      task.description || null, 
-      task.assigneeId || null, 
+      task.description || null,
+      task.assigneeId || null,
       task.statusId || null,
       task.parentId || null
     ]
   );
-});
+  });
 
+  ipcMain.handle('update-task', async (event, task: {
+  id: number;
+  title: string;
+  description?: string;
+  assigneeId?: number;
+  statusId?: number;
+  parentId?: number;
+  }) => {
+  const db = getDatabase();
+  return await db.run(
+    'UPDATE Task SET Title = ?, Description = ?, AssigneeId = ?, StatusId = ?, ParentId = ? WHERE Id = ?',
+    [
+      task.title,
+      task.description || null,
+      task.assigneeId || null,
+      task.statusId || null,
+      task.parentId || null,
+      task.id
+    ]
+  );
+  });
 ipcMain.handle('add-prerequisite', async (event, { taskId, prerequisiteTaskId, type }) => {
   const db = getDatabase();
   return await db.run(

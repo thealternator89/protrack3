@@ -44,6 +44,14 @@ contextBridge.exposeInMainWorld('tasks', {
     statusId?: number;
     parentId?: number;
   }) => ipcRenderer.invoke('create-task', task),
+  update: (task: { 
+    id: number;
+    title: string; 
+    description?: string; 
+    assigneeId?: number; 
+    statusId?: number;
+    parentId?: number;
+  }) => ipcRenderer.invoke('update-task', task),
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 
     ipcRenderer.invoke('add-prerequisite', { taskId, prerequisiteTaskId, type }),
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 

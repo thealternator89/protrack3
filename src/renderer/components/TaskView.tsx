@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Task, Person, Status, Project, TaskPrerequisite } from '../types';
 
@@ -12,14 +12,42 @@ const TaskView: React.FC = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [loading, setLoading] = useState(true);
+  const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+
+  // Calculate descendant IDs to prevent circular parent assignments
+  const descendantIds = useMemo(() => {
+    if (!task || projectTasks.length === 0) return new Set<number>();
+    
+    const ids = new Set<number>();
+    const findChildren = (parentId: number) => {
+      projectTasks.forEach(t => {
+        if (t.ParentId === parentId) {
+          ids.add(t.Id);
+          findChildren(t.Id);
+        }
+      });
+    };
+    
+    findChildren(task.Id);
+    return ids;
+  }, [task, projectTasks]);
 
   // Modal State
   const [showAddPrereqModal, setShowAddPrereqModal] = useState(false);
   const [showEditPrereqModal, setShowEditPrereqModal] = useState(false);
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [prereqDisplayId, setPrereqDisplayId] = useState('');
   const [prereqType, setPrereqType] = useState('Start');
   const [isProcessingPrereq, setIsProcessingPrereq] = useState(false);
   const [editingPrereq, setEditingPrereq] = useState<TaskPrerequisite | null>(null);
+
+  // Edit Task Form State
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editAssigneeId, setEditAssigneeId] = useState<number | ''>('');
+  const [editStatusId, setEditStatusId] = useState<number | ''>('');
+  const [editParentId, setEditParentId] = useState<number | ''>('');
+  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
   
   // Delete confirmation state
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
@@ -33,14 +61,16 @@ const TaskView: React.FC = () => {
         setTask(data.task);
         setPrerequisites(data.prerequisites);
         setDependedOnBy(data.dependedOnBy || []);
-        const [projectData, peopleData, statusData] = await Promise.all([
+        const [projectData, peopleData, statusData, projectTasksData] = await Promise.all([
           window.projects.get(data.task.ProjectId),
           window.people.getAll(),
-          window.statuses.getAll()
+          window.statuses.getAll(),
+          window.tasks.getByProject(data.task.ProjectId)
         ]);
         setProject(projectData);
         setPeople(peopleData);
         setStatuses(statusData);
+        setProjectTasks(projectTasksData.tasks);
       }
     } catch (error) {
       console.error('Failed to fetch task details:', error);
@@ -55,6 +85,40 @@ const TaskView: React.FC = () => {
       if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
     };
   }, [id]);
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!task || !editTitle.trim()) return;
+
+    setIsUpdatingTask(true);
+    try {
+      await window.tasks.update({
+        id: task.Id,
+        title: editTitle.trim(),
+        description: editDescription.trim() || undefined,
+        assigneeId: editAssigneeId === '' ? undefined : editAssigneeId,
+        statusId: editStatusId === '' ? undefined : (editStatusId as number),
+        parentId: editParentId === '' ? undefined : editParentId,
+      });
+      setShowEditTaskModal(false);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      alert('Error updating task. Please try again.');
+    } finally {
+      setIsUpdatingTask(false);
+    }
+  };
+
+  const openEditTaskModal = () => {
+    if (!task) return;
+    setEditTitle(task.Title);
+    setEditDescription(task.Description || '');
+    setEditAssigneeId(task.AssigneeId || '');
+    setEditStatusId(task.StatusId || '');
+    setEditParentId(task.ParentId || '');
+    setShowEditTaskModal(true);
+  };
 
   const handleAddPrerequisite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,16 +241,24 @@ const TaskView: React.FC = () => {
           <div className="card shadow-sm mb-4">
             <div className="card-header bg-white py-3">
               <div className="d-flex justify-content-between align-items-center mb-2">
-                <h2 className="mb-0 h4">
-                  <span className="text-muted small fw-bold me-2">{project?.Prefix}-{task.DisplayId}</span>
-                  {task.Title}
-                </h2>
-                <div>
+                <div className="d-flex align-items-center gap-3">
+                  <h2 className="mb-0 h4">
+                    <span className="text-muted small fw-bold me-2">{project?.Prefix}-{task.DisplayId}</span>
+                    {task.Title}
+                  </h2>
                   {task.StatusLabel && (
                     <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fs-6 fw-normal`}>
                       {task.StatusLabel}
                     </span>
                   )}
+                </div>
+                <div>
+                  <button 
+                    className="btn btn-sm btn-outline-primary no-drag"
+                    onClick={openEditTaskModal}
+                  >
+                    <i className="fas fa-edit me-1"></i> Edit
+                  </button>
                 </div>
               </div>
               <div className="d-flex flex-wrap gap-2">
@@ -401,6 +473,113 @@ const TaskView: React.FC = () => {
                         ) : 'Update'}
                       </button>
                     </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
+
+      {/* Edit Task Modal */}
+      {showEditTaskModal && task && (
+        <>
+          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content shadow">
+                <div className="modal-header">
+                  <h5 className="modal-title">Edit Task</h5>
+                  <button type="button" className="btn-close no-drag" onClick={() => setShowEditTaskModal(false)}></button>
+                </div>
+                <form onSubmit={handleUpdateTask}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label htmlFor="editTaskTitle" className="form-label">Task Title</label>
+                      <input
+                        type="text"
+                        className="form-control no-drag"
+                        id="editTaskTitle"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="editTaskDescription" className="form-label">Description</label>
+                      <textarea
+                        className="form-control no-drag"
+                        id="editTaskDescription"
+                        rows={3}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                      />
+                    </div>
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="editTaskAssignee" className="form-label">Assignee</label>
+                        <select
+                          className="form-select no-drag"
+                          id="editTaskAssignee"
+                          value={editAssigneeId}
+                          onChange={(e) => setEditAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">Unassigned</option>
+                          {people.map((person) => (
+                            <option key={person.Id} value={person.Id}>
+                              {person.Name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="editTaskStatus" className="form-label">Status</label>
+                        <select
+                          className="form-select no-drag"
+                          id="editTaskStatus"
+                          value={editStatusId}
+                          onChange={(e) => setEditStatusId(Number(e.target.value))}
+                          required
+                        >
+                          {statuses.map((status) => (
+                            <option key={status.Id} value={status.Id}>
+                              {status.Label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="editTaskParent" className="form-label">Parent Task</label>
+                      <select
+                        className="form-select no-drag"
+                        id="editTaskParent"
+                        value={editParentId}
+                        onChange={(e) => setEditParentId(e.target.value === '' ? '' : Number(e.target.value))}
+                      >
+                        <option value="">No Parent</option>
+                        {projectTasks
+                          .filter(t => t.Id !== task.Id && !descendantIds.has(t.Id)) // Exclude current task and all its descendants
+                          .map((t) => (
+                            <option key={t.Id} value={t.Id}>
+                              {project?.Prefix}-{t.DisplayId}: {t.Title}
+                            </option>
+                          ))
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowEditTaskModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary no-drag" disabled={isUpdatingTask}>
+                      {isUpdatingTask ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Updating...
+                        </>
+                      ) : 'Save Changes'}
+                    </button>
                   </div>
                 </form>
               </div>
