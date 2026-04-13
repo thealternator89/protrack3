@@ -16,7 +16,7 @@ const TaskView: React.FC = () => {
   // Modal State
   const [showAddPrereqModal, setShowAddPrereqModal] = useState(false);
   const [showEditPrereqModal, setShowEditPrereqModal] = useState(false);
-  const [prereqTaskId, setPrereqTaskId] = useState<number | ''>('');
+  const [prereqDisplayId, setPrereqDisplayId] = useState('');
   const [prereqType, setPrereqType] = useState('Start');
   const [isProcessingPrereq, setIsProcessingPrereq] = useState(false);
   const [editingPrereq, setEditingPrereq] = useState<TaskPrerequisite | null>(null);
@@ -58,18 +58,25 @@ const TaskView: React.FC = () => {
 
   const handleAddPrerequisite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !prereqTaskId || isProcessingPrereq) return;
+    if (!id || !prereqDisplayId || !task || isProcessingPrereq) return;
 
     setIsProcessingPrereq(true);
     try {
-      await window.tasks.addPrerequisite(Number(id), Number(prereqTaskId), prereqType);
-      setPrereqTaskId('');
+      const targetTask = await window.tasks.findByDisplayId(prereqDisplayId, task.ProjectId);
+      if (!targetTask) {
+        alert(`Task "${prereqDisplayId}" not found.`);
+        setIsProcessingPrereq(false);
+        return;
+      }
+
+      await window.tasks.addPrerequisite(Number(id), targetTask.Id, prereqType);
+      setPrereqDisplayId('');
       setPrereqType('Start');
       setShowAddPrereqModal(false);
       await fetchData();
     } catch (error) {
       console.error('Failed to add prerequisite:', error);
-      alert('Error adding prerequisite. Please make sure the Task ID is valid.');
+      alert('Error adding prerequisite.');
     } finally {
       setIsProcessingPrereq(false);
     }
@@ -228,7 +235,7 @@ const TaskView: React.FC = () => {
                   <button 
                     className="btn btn-sm btn-outline-primary no-drag"
                     onClick={() => {
-                      setPrereqTaskId('');
+                      setPrereqDisplayId('');
                       setPrereqType('Start');
                       setShowAddPrereqModal(true);
                     }}
@@ -301,12 +308,12 @@ const TaskView: React.FC = () => {
                     <div className="mb-3">
                       <label htmlFor="prereqTaskId" className="form-label">Prerequisite Task ID</label>
                       <input
-                        type="number"
+                        type="text"
                         className="form-control no-drag"
                         id="prereqTaskId"
-                        placeholder="Enter Task ID (e.g., 42)"
-                        value={prereqTaskId}
-                        onChange={(e) => setPrereqTaskId(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="Enter ID (e.g., 42 or ABC-42)"
+                        value={prereqDisplayId}
+                        onChange={(e) => setPrereqDisplayId(e.target.value)}
                         required
                         autoFocus
                       />

@@ -103,11 +103,13 @@ export interface TasksAPI {
     sortOrder: number;
     description?: string; 
     assigneeId?: number; 
-    statusId?: number 
+    statusId?: number;
+    parentId?: number;
   }) => Promise<any>;
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
+  findByDisplayId: (input: string, currentProjectId: number) => Promise<{ Id: number } | null>;
 }
 
 declare global {

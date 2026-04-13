@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Project, Person, Task, TaskPrerequisite, Status } from '../types';
 
@@ -27,6 +27,7 @@ const ProjectView: React.FC = () => {
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<number | ''>('');
   const [newTaskStatusId, setNewTaskStatusId] = useState<number | ''>('');
+  const [newTaskParentId, setNewTaskParentId] = useState<number | ''>('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -101,7 +102,11 @@ const ProjectView: React.FC = () => {
     try {
       // Simple logic for next DisplayId and SortOrder
       const nextDisplayId = tasks.length > 0 ? Math.max(...tasks.map(t => t.DisplayId)) + 1 : 1;
-      const nextSortOrder = tasks.length > 0 ? Math.max(...tasks.map(t => t.SortOrder)) + 10 : 10;
+      
+      const siblingTasks = tasks.filter(t => 
+        newTaskParentId === '' ? (t.ParentId === null || t.ParentId === undefined) : t.ParentId === newTaskParentId
+      );
+      const nextSortOrder = siblingTasks.length > 0 ? Math.max(...siblingTasks.map(t => t.SortOrder)) + 10 : 10;
 
       await window.tasks.create({
         displayId: nextDisplayId,
@@ -111,10 +116,12 @@ const ProjectView: React.FC = () => {
         description: newTaskDescription.trim() || undefined,
         assigneeId: newTaskAssigneeId === '' ? undefined : newTaskAssigneeId,
         statusId: newTaskStatusId === '' ? undefined : (newTaskStatusId as number),
+        parentId: newTaskParentId === '' ? undefined : newTaskParentId,
       });
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskAssigneeId('');
+      setNewTaskParentId('');
       // Reset status to "New" status if available
       if (statuses.length > 0) {
         const newStatus = statuses.find(s => s.IsNew === 1) || statuses[0];
@@ -161,79 +168,115 @@ const ProjectView: React.FC = () => {
     );
   };
 
-  const TaskTable = ({ tasks }: { tasks: Task[] }) => (
-    <div className="mb-5">
-      {tasks.length === 0 ? (
-        <div className="alert alert-light border text-center py-4">
-          No tasks found for this project.
-        </div>
-      ) : (
-        <div className="table-responsive">
-          <table className="table table-hover align-middle border shadow-sm rounded" style={{ tableLayout: 'fixed' }}>
-            <thead className="table-light">
-              <tr>
-                <th style={{ width: '80px' }}>ID</th>
-                <th>Title</th>
-                <th style={{ width: '150px' }}>Assignee</th>
-                <th style={{ width: '150px' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasks.map(task => {
-                const notReady = !isReadyToStart(task) && !!statuses.find(s => s.Id === task.StatusId && s.IsNew === 1);
-                const dependentTasks = prerequisites.filter(p => p.PrerequisiteTaskId === task.Id);
-                const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
+  const openAddTaskModal = (parentId: number | '' = '') => {
+    setNewTaskParentId(parentId);
+    setShowAddTaskModal(true);
+  };
 
-                return (
-                  <tr key={task.Id}>
-                    <td className="text-muted small fw-bold">{project.Prefix}-{task.DisplayId}</td>
-                    <td className="text-truncate">
-                      <Link to={`/task/${task.Id}`} className="text-decoration-none text-dark">
-                        <strong>{task.Title}</strong>
-                      </Link>
-                      {task.ParentId && (
-                        <div className="small text-muted mt-1">
-                          <i className="fas fa-level-up-alt fa-rotate-90 me-1"></i>
-                          Subtask of: <Link to={`/task/${task.ParentId}`} className="text-decoration-none">{task.ParentTitle || `Task #${task.ParentId}`}</Link>
+  const TaskTable = ({ tasks }: { tasks: Task[] }) => {
+    const flattenedTasks = useMemo(() => {
+      const result: (Task & { depth: number })[] = [];
+      
+      const flatten = (parentId: number | null = null, depth = 0) => {
+        const children = tasks
+          .filter(t => t.ParentId === parentId)
+          .sort((a, b) => a.SortOrder - b.SortOrder);
+          
+        for (const child of children) {
+          result.push({ ...child, depth });
+          flatten(child.Id, depth + 1);
+        }
+      };
+      
+      flatten(null, 0);
+      return result;
+    }, [tasks]);
+
+    return (
+      <div className="mb-5">
+        {flattenedTasks.length === 0 ? (
+          <div className="alert alert-light border text-center py-4">
+            No tasks found for this project.
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-hover align-middle border shadow-sm rounded" style={{ tableLayout: 'fixed' }}>
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: '80px' }}>ID</th>
+                  <th>Title</th>
+                  <th style={{ width: '150px' }}>Assignee</th>
+                  <th style={{ width: '150px' }}>Status</th>
+                  <th style={{ width: '50px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {flattenedTasks.map(task => {
+                  const notReady = !isReadyToStart(task) && !!statuses.find(s => s.Id === task.StatusId && s.IsNew === 1);
+                  const dependentTasks = prerequisites.filter(p => p.PrerequisiteTaskId === task.Id);
+                  const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
+
+                  return (
+                    <tr key={task.Id}>
+                      <td className="text-muted small fw-bold">{project.Prefix}-{task.DisplayId}</td>
+                      <td className="text-truncate" style={{ paddingLeft: `${task.depth * 24 + 12}px` }}>
+                        <div className="d-flex align-items-center">
+                          {task.depth > 0 && (
+                            <i className="fas fa-level-up-alt fa-rotate-90 text-muted me-2 small"></i>
+                          )}
+                          <Link to={`/task/${task.Id}`} className="text-decoration-none text-dark">
+                            <strong>{task.Title}</strong>
+                          </Link>
                         </div>
-                      )}
-                      <div className="mt-1">
-                        {notReady && (
-                          <span className="badge bg-warning text-dark me-2 fw-normal small">
-                            <i className="fas fa-pause-circle me-1"></i>Not Ready
-                          </span>
+                        <div className="mt-1">
+                          {notReady && (
+                            <span className="badge bg-warning text-dark me-2 fw-normal small">
+                              <i className="fas fa-pause-circle me-1"></i>Not Ready
+                            </span>
+                          )}
+                          {isPrerequisite && (
+                            <span className="badge bg-info text-dark fw-normal small">
+                              <i className="fas fa-link me-1"></i>
+                              Prerequisite for: {dependentTasks.length}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {task.AssigneeName ? (
+                          <span className="badge bg-info text-dark fw-normal d-inline-block text-truncate" style={{ maxWidth: '200px' }}>{task.AssigneeName}</span>
+                        ) : (
+                          <span className="text-muted small italic">Unassigned</span>
                         )}
-                        {isPrerequisite && (
-                          <span className="badge bg-info text-dark fw-normal small">
-                            <i className="fas fa-link me-1"></i>
-                            Prerequisite for: {dependentTasks.length}
+                      </td>
+                      <td>
+                        {task.StatusLabel ? (
+                          <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fw-normal d-inline-block text-truncate`}>
+                            {task.StatusLabel}
                           </span>
-                        )}                      </div>
-                    </td>
-                    <td>                      {task.AssigneeName ? (
-                        <span className="badge bg-info text-dark fw-normal d-inline-block text-truncate" style={{ maxWidth: '200px' }}>{task.AssigneeName}</span>
-                      ) : (
-                        <span className="text-muted small italic">Unassigned</span>
-                      )}
-                    </td>
-                    <td>
-                      {task.StatusLabel ? (
-                        <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fw-normal d-inline-block text-truncate`}>
-                          {task.StatusLabel}
-                        </span>
-                      ) : (
-                        <span className="text-muted small italic">No status</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+                        ) : (
+                          <span className="text-muted small italic">No status</span>
+                        )}
+                      </td>
+                      <td className="text-end">
+                        <button 
+                          className="btn btn-sm btn-outline-primary no-drag"
+                          onClick={() => openAddTaskModal(task.Id)}
+                          title="Add Subtask"
+                        >
+                          <i className="fas fa-plus"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="main-content">
@@ -280,7 +323,7 @@ const ProjectView: React.FC = () => {
               <h4 className="mb-0">Tasks</h4>
               <button 
                 className="btn btn-primary no-drag"
-                onClick={() => setShowAddTaskModal(true)}
+                onClick={() => openAddTaskModal()}
               >
                 <i className="fas fa-plus me-1"></i> Add Task
               </button>
@@ -298,11 +341,24 @@ const ProjectView: React.FC = () => {
             <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content shadow">
                 <div className="modal-header">
-                  <h5 className="modal-title">Add New Task</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowAddTaskModal(false)}></button>
+                  <h5 className="modal-title">
+                    {newTaskParentId ? 'Add Subtask' : 'Add New Task'}
+                  </h5>
+                  <button type="button" className="btn-close no-drag" onClick={() => {
+                    setShowAddTaskModal(false);
+                    setNewTaskParentId('');
+                  }}></button>
                 </div>
                 <form onSubmit={handleAddTask}>
                   <div className="modal-body">
+                    {newTaskParentId && (
+                      <div className="mb-3">
+                        <label className="form-label text-muted small text-uppercase fw-bold">Parent Task</label>
+                        <div className="p-2 bg-light border rounded">
+                          {tasks.find(t => t.Id === newTaskParentId)?.Title || `Task #${newTaskParentId}`}
+                        </div>
+                      </div>
+                    )}
                     <div className="mb-3">
                       <label htmlFor="taskTitle" className="form-label">Task Title</label>
                       <input
@@ -363,7 +419,10 @@ const ProjectView: React.FC = () => {
                     </div>
                   </div>
                   <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowAddTaskModal(false)}>Cancel</button>
+                    <button type="button" className="btn btn-secondary no-drag" onClick={() => {
+                      setShowAddTaskModal(false);
+                      setNewTaskParentId('');
+                    }}>Cancel</button>
                     <button type="submit" className="btn btn-primary no-drag" disabled={isCreatingTask}>
                       {isCreatingTask ? (
                         <>

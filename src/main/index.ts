@@ -213,11 +213,12 @@ ipcMain.handle('create-task', async (event, task: {
   sortOrder: number;
   description?: string; 
   assigneeId?: number; 
-  statusId?: number 
+  statusId?: number;
+  parentId?: number;
 }) => {
   const db = getDatabase();
   return await db.run(
-    'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId, ParentId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
       task.displayId,
       task.title, 
@@ -225,7 +226,8 @@ ipcMain.handle('create-task', async (event, task: {
       task.sortOrder,
       task.description || null, 
       task.assigneeId || null, 
-      task.statusId || null
+      task.statusId || null,
+      task.parentId || null
     ]
   );
 });
@@ -252,6 +254,25 @@ ipcMain.handle('delete-prerequisite', async (event, { taskId, prerequisiteTaskId
     'DELETE FROM TaskPrerequisite WHERE TaskId = ? AND PrerequisiteTaskId = ?',
     [taskId, prerequisiteTaskId]
   );
+});
+
+ipcMain.handle('find-task-by-display-id', async (event, { input, currentProjectId }) => {
+  const db = getDatabase();
+  const parts = input.split('-');
+  
+  if (parts.length === 2) {
+    const [prefix, displayId] = parts;
+    return await db.get(`
+      SELECT t.Id 
+      FROM Task t 
+      JOIN Project p ON t.ProjectId = p.Id 
+      WHERE p.Prefix = ? AND t.DisplayId = ?
+    `, [prefix.toUpperCase(), Number(displayId)]);
+  } else {
+    return await db.get(`
+      SELECT Id FROM Task WHERE ProjectId = ? AND DisplayId = ?
+    `, [currentProjectId, Number(input)]);
+  }
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

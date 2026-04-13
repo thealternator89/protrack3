@@ -41,7 +41,8 @@ contextBridge.exposeInMainWorld('tasks', {
     sortOrder: number;
     description?: string; 
     assigneeId?: number; 
-    statusId?: number 
+    statusId?: number;
+    parentId?: number;
   }) => ipcRenderer.invoke('create-task', task),
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 
     ipcRenderer.invoke('add-prerequisite', { taskId, prerequisiteTaskId, type }),
@@ -49,4 +50,6 @@ contextBridge.exposeInMainWorld('tasks', {
     ipcRenderer.invoke('update-prerequisite', { taskId, prerequisiteTaskId, type }),
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => 
     ipcRenderer.invoke('delete-prerequisite', { taskId, prerequisiteTaskId }),
+  findByDisplayId: (input: string, currentProjectId: number) => 
+    ipcRenderer.invoke('find-task-by-display-id', { input, currentProjectId }),
 });
