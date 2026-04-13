@@ -174,6 +174,9 @@ const ProjectView: React.FC = () => {
   };
 
   const TaskTable = ({ tasks }: { tasks: Task[] }) => {
+    const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+    const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+
     const flattenedTasks = useMemo(() => {
       const result: (Task & { depth: number })[] = [];
       
@@ -192,6 +195,61 @@ const ProjectView: React.FC = () => {
       return result;
     }, [tasks]);
 
+    const handleDragStart = (e: React.DragEvent, taskId: number) => {
+      setDraggedTaskId(taskId);
+      e.dataTransfer.setData('taskId', taskId.toString());
+      e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e: React.DragEvent, targetTask: Task) => {
+      const draggedTask = tasks.find(t => t.Id === draggedTaskId);
+      if (draggedTask && draggedTask.ParentId === targetTask.ParentId && draggedTask.Id !== targetTask.Id) {
+        e.preventDefault();
+        setDropTargetId(targetTask.Id);
+      }
+    };
+
+    const handleDrop = async (e: React.DragEvent, targetTask: Task) => {
+      e.preventDefault();
+      if (draggedTaskId === null || draggedTaskId === targetTask.Id) return;
+
+      const draggedTask = tasks.find(t => t.Id === draggedTaskId);
+      if (!draggedTask || draggedTask.ParentId !== targetTask.ParentId) return;
+
+      // Get siblings in current order
+      const siblings = tasks
+        .filter(t => t.ParentId === draggedTask.ParentId)
+        .sort((a, b) => a.SortOrder - b.SortOrder);
+
+      const oldIndex = siblings.findIndex(t => t.Id === draggedTaskId);
+      const newIndex = siblings.findIndex(t => t.Id === targetTask.Id);
+
+      const newSiblings = [...siblings];
+      newSiblings.splice(oldIndex, 1);
+      newSiblings.splice(newIndex, 0, draggedTask);
+
+      // Create update payload
+      const updates = newSiblings.map((t, index) => ({
+        id: t.Id,
+        sortOrder: (index + 1) * 10
+      }));
+
+      try {
+        await window.tasks.updateSortOrders(updates);
+        await fetchData();
+      } catch (error) {
+        console.error('Failed to update task order:', error);
+      } finally {
+        setDraggedTaskId(null);
+        setDropTargetId(null);
+      }
+    };
+
+    const handleDragEnd = () => {
+      setDraggedTaskId(null);
+      setDropTargetId(null);
+    };
+
     return (
       <div className="mb-5">
         {flattenedTasks.length === 0 ? (
@@ -203,6 +261,7 @@ const ProjectView: React.FC = () => {
             <table className="table table-hover align-middle border shadow-sm rounded" style={{ tableLayout: 'fixed' }}>
               <thead className="table-light">
                 <tr>
+                  <th style={{ width: '40px' }}></th>
                   <th style={{ width: '80px' }}>ID</th>
                   <th>Title</th>
                   <th style={{ width: '150px' }}>Assignee</th>
@@ -215,9 +274,23 @@ const ProjectView: React.FC = () => {
                   const notReady = !isReadyToStart(task) && !!statuses.find(s => s.Id === task.StatusId && s.IsNew === 1);
                   const dependentTasks = prerequisites.filter(p => p.PrerequisiteTaskId === task.Id);
                   const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
+                  const isDragged = draggedTaskId === task.Id;
+                  const isDropTarget = dropTargetId === task.Id;
 
                   return (
-                    <tr key={task.Id}>
+                    <tr 
+                      key={task.Id}
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(e, task.Id)}
+                      onDragOver={(e) => handleDragOver(e, task)}
+                      onDrop={(e) => handleDrop(e, task)}
+                      onDragEnd={handleDragEnd}
+                      className={`${isDragged ? 'opacity-50' : ''} ${isDropTarget ? 'table-primary border-primary' : ''}`}
+                      style={{ cursor: 'grab' }}
+                    >
+                      <td className="text-center">
+                        <i className="fas fa-grip-vertical text-muted"></i>
+                      </td>
                       <td className="text-muted small fw-bold">{project.Prefix}-{task.DisplayId}</td>
                       <td className="text-truncate" style={{ paddingLeft: `${task.depth * 24 + 12}px` }}>
                         <div className="d-flex align-items-center">

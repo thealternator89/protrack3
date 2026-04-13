@@ -60,4 +60,6 @@ contextBridge.exposeInMainWorld('tasks', {
     ipcRenderer.invoke('delete-prerequisite', { taskId, prerequisiteTaskId }),
   findByDisplayId: (input: string, currentProjectId: number) => 
     ipcRenderer.invoke('find-task-by-display-id', { input, currentProjectId }),
+  updateSortOrders: (updates: { id: number; sortOrder: number }[]) => 
+    ipcRenderer.invoke('update-task-orders', updates),
 });

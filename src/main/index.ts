@@ -277,6 +277,14 @@ ipcMain.handle('delete-prerequisite', async (event, { taskId, prerequisiteTaskId
   );
 });
 
+ipcMain.handle('update-task-orders', async (event, updates: { id: number; sortOrder: number }[]) => {
+  const db = getDatabase();
+  // Using a loop here; for better performance in larger sets, consider a transaction or bulk update.
+  for (const update of updates) {
+    await db.run('UPDATE Task SET SortOrder = ? WHERE Id = ?', [update.sortOrder, update.id]);
+  }
+});
+
 ipcMain.handle('find-task-by-display-id', async (event, { input, currentProjectId }) => {
   const db = getDatabase();
   const parts = input.split('-');

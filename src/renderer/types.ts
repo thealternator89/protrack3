@@ -118,6 +118,7 @@ export interface TasksAPI {
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
   findByDisplayId: (input: string, currentProjectId: number) => Promise<{ Id: number } | null>;
+  updateSortOrders: (updates: { id: number; sortOrder: number }[]) => Promise<any>;
 }
 
 declare global {
