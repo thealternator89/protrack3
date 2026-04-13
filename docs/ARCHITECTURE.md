@@ -1,51 +1,56 @@
 # Architecture Overview
 
-This project follows Electron's recommended security practices by separating the main (Node.js) process from the renderer (Chromium) process.
+ProTrack 3 is an Electron-based application that separates its logic into a secure main process (Node.js) and a modern renderer process (React).
 
 ## Process Model
 
 - **Main Process (`src/main/index.ts`):**
-  - Manages application lifecycle.
-  - Controls native OS features.
-  - Can access Node.js APIs directly.
-  - Spawns the main window.
+  - Manages application lifecycle and native OS interactions.
+  - Owns and manages the SQLite database via `src/main/database.ts`.
+  - Exposes functionality to the UI through a robust set of IPC handlers.
 - **Preload Script (`src/main/preload.ts`):**
-  - A secure bridge between the main and renderer processes.
-  - Runs in a renderer context but has access to Node.js APIs.
+  - Acts as a secure, typed bridge between processes.
   - Exposes APIs to the renderer using `contextBridge.exposeInMainWorld`.
 - **Renderer Process (`src/renderer/renderer.tsx`):**
-  - The UI (React).
-  - Runs in a sandboxed environment for security.
-  - Accesses OS/Main features only through the bridge provided by the preload script.
+  - A modern React 19 application.
+  - Utilizes React Router 7 for navigation.
+  - Components located in `src/renderer/components/` handle various views: `ProjectList`, `ProjectView`, `TaskView`, and `Settings`.
+
+## Data Persistence & Schema
+
+The application uses **SQLite** for all persistent storage. The database is initialized and migrated automatically on startup.
+
+### Database Schema
+
+- **Project**: Tracks high-level project metadata (Title, Prefix, StartDate, DueDate, Owner).
+- **Task**: Main unit of work. Includes hierarchical relationships (`ParentId`), sort order, assignees, and statuses.
+- **Person**: Directory of team members/assignees with custom display colors.
+- **Status**: Custom workflow statuses, including flags for "New" and "Complete".
+- **TaskSource**: Configuration for external task integrations (e.g., Jira, GitHub).
+- **TaskPrerequisite**: Many-to-many relationship tracking task dependencies.
+- **StatusMap**: Mapping external source statuses to internal application statuses.
+
+### Automated Migrations
+
+Schema changes are managed through SQL migration files in the `migrations/` directory. On application startup, `initDatabase()` (in `src/main/database.ts`) detects and applies any pending migrations.
 
 ## Inter-Process Communication (IPC)
 
-When the renderer needs to perform a task that requires Node.js (e.g., interacting with the file system or executing shell commands), it should use IPC.
+The renderer communicates with the database and OS exclusively through asynchronous IPC calls.
 
-1.  **Define IPC Handler in Main Process:**
-    ```typescript
-    import { ipcMain } from 'electron';
-    ipcMain.handle('some-action', async (event, data) => {
-      // Perform action in Node.js
-      return result;
-    });
-    ```
+- **DB Access**: Generic `db-query` and `db-run` handlers are available for flexible queries.
+- **Entity Handlers**: Specialized handlers (e.g., `create-project`, `get-task`, `update-person`) encapsulate complex logic or frequently used operations.
+- **Task Operations**: Advanced handlers for task hierarchy, prerequisites, and bulk sort order updates.
 
-2.  **Expose IPC Method in Preload Script:**
-    ```typescript
-    import { contextBridge, ipcRenderer } from 'electron';
-    contextBridge.exposeInMainWorld('electronAPI', {
-      doSomething: (data) => ipcRenderer.invoke('some-action', data)
-    });
-    ```
-
-3.  **Use in React Component:**
-    ```typescript
-    const result = await (window as any).electronAPI.doSomething(data);
-    ```
+Example usage in React:
+```typescript
+// Defined in preload.ts and available on window.electronAPI
+const result = await window.electronAPI.getProject(projectId);
+```
 
 ## Development Workflow
 
-- **Styling:** Vanilla CSS is preferred for maximum flexibility. Global styles should be placed in `src/renderer/index.css`.
-- **Components:** React components should be modular and placed in `src/renderer/components`.
-- **Types:** TypeScript is used throughout to ensure type safety. Shared types can be kept in a `src/types` directory.
+- **Type Safety**: TypeScript is used end-to-end. Shared types are located in `src/renderer/types.ts`.
+- **UI Framework**: Bootstrap 5 provides a responsive grid and pre-built components, supplemented by custom CSS in `src/renderer/index.css`.
+- **Icons**: FontAwesome 7 icons are used consistently across the UI.
+- **Styling**: Vanilla CSS is used for specific component layouts and custom branding.
