@@ -29,6 +29,11 @@ The application employs a Repository Pattern to decouple the data access layer f
 ### Service Layer
 Complex workflows or external integrations (like Azure DevOps import) are encapsulated in Services. This ensures that IPC handlers remain thin and focused on communication, while business logic resides in a dedicated layer.
 
+### Shared UI Components
+The renderer process leverages a shared component library in `src/renderer/components/shared/` to:
+- **Minimize Duplication**: Standardized components for Modals and Loading Spinners reduce boilerplate.
+- **Generic Entity Modals**: Common form logic for creating and editing projects (`ProjectModal`) and tasks (`TaskModal`) is encapsulated, ensuring a consistent user experience.
+
 ## Data Persistence & Schema
 
 The application uses **SQLite** for all persistent storage. The database is initialized and migrated automatically on startup.
@@ -57,8 +62,8 @@ The renderer communicates with the main process exclusively through asynchronous
 
 Example usage in React:
 ```typescript
-// Defined in preload.ts and available on window.electronAPI
-const result = await window.electronAPI.getProject(projectId);
+// Defined in preload.ts and available on the window object
+const result = await window.projects.get(projectId);
 ```
 
 ## Development Workflow

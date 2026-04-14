@@ -67,6 +67,8 @@ npm run make
 │   ├── renderer/       # Renderer process (React environment)
 │   │   ├── App.tsx     # Main React component & Routing
 │   │   ├── components/ # Modular UI components
+│   │   │   ├── shared/ # Reusable UI components (Modals, Spinners, generic entity forms)
+│   │   │   └── settings/ # Tab components for the Settings view
 │   │   ├── types.ts    # Renderer-specific types (imports from shared)
 │   │   └── renderer.tsx # Renderer entry point (React mount)
 │   └── shared/         # Common types shared between processes
