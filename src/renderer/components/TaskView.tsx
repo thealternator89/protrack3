@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Task, Person, Status, Project, TaskPrerequisite } from '../types';
+import { Task, Person, Status, Project, TaskPrerequisite, TaskSource } from '../types';
 
 const TaskView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -11,8 +11,27 @@ const TaskView: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
+  const [taskSources, setTaskSources] = useState<TaskSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
+
+  // Calculate remote task URL
+  const remoteUrl = useMemo(() => {
+    if (!task?.RemoteTaskId || !project?.TaskSourceId || taskSources.length === 0) return null;
+    
+    const source = taskSources.find(s => s.Id === project.TaskSourceId);
+    if (!source) return null;
+
+    try {
+      const config = JSON.parse(source.Config);
+      if (source.Type === 'Azure DevOps') {
+        return `https://dev.azure.com/${config.org}/${config.project}/_workitems/edit/${task.RemoteTaskId}`;
+      }
+    } catch {
+      console.error('Failed to parse task source config');
+    }
+    return null;
+  }, [task, project, taskSources]);
 
   // Calculate descendant IDs to prevent circular parent assignments
   const descendantIds = useMemo(() => {
@@ -47,6 +66,7 @@ const TaskView: React.FC = () => {
   const [editAssigneeId, setEditAssigneeId] = useState<number | ''>('');
   const [editStatusId, setEditStatusId] = useState<number | ''>('');
   const [editParentId, setEditParentId] = useState<number | ''>('');
+  const [editRemoteId, setEditRemoteId] = useState<number | ''>('');
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
   
   // Delete confirmation state
@@ -61,16 +81,18 @@ const TaskView: React.FC = () => {
         setTask(data.task);
         setPrerequisites(data.prerequisites);
         setDependedOnBy(data.dependedOnBy || []);
-        const [projectData, peopleData, statusData, projectTasksData] = await Promise.all([
+        const [projectData, peopleData, statusData, projectTasksData, taskSourcesData] = await Promise.all([
           window.projects.get(data.task.ProjectId),
           window.people.getAll(),
           window.statuses.getAll(),
-          window.tasks.getByProject(data.task.ProjectId)
+          window.tasks.getByProject(data.task.ProjectId),
+          window.taskSources.getAll()
         ]);
         setProject(projectData);
         setPeople(peopleData);
         setStatuses(statusData);
         setProjectTasks(projectTasksData.tasks);
+        setTaskSources(taskSourcesData);
       }
     } catch (error) {
       console.error('Failed to fetch task details:', error);
@@ -99,6 +121,7 @@ const TaskView: React.FC = () => {
         assigneeId: editAssigneeId === '' ? undefined : editAssigneeId,
         statusId: editStatusId === '' ? undefined : (editStatusId as number),
         parentId: editParentId === '' ? undefined : editParentId,
+        remoteTaskId: editRemoteId === '' ? undefined : (editRemoteId as number),
       });
       setShowEditTaskModal(false);
       await fetchData();
@@ -117,6 +140,7 @@ const TaskView: React.FC = () => {
     setEditAssigneeId(task.AssigneeId || '');
     setEditStatusId(task.StatusId || '');
     setEditParentId(task.ParentId || '');
+    setEditRemoteId(task.RemoteTaskId || '');
     setShowEditTaskModal(true);
   };
 
@@ -252,7 +276,16 @@ const TaskView: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <div>
+                <div className="d-flex align-items-center gap-2">
+                  {remoteUrl && (
+                    <button 
+                      className="btn btn-sm btn-outline-info no-drag"
+                      onClick={() => window.electronAPI.openExternal(remoteUrl)}
+                      title="View in External Source"
+                    >
+                      <i className="fas fa-external-link-alt me-1"></i> View
+                    </button>
+                  )}
                   <button 
                     className="btn btn-sm btn-outline-primary no-drag"
                     onClick={openEditTaskModal}
@@ -550,24 +583,38 @@ const TaskView: React.FC = () => {
                         </select>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label htmlFor="editTaskParent" className="form-label">Parent Task</label>
-                      <select
-                        className="form-select no-drag"
-                        id="editTaskParent"
-                        value={editParentId}
-                        onChange={(e) => setEditParentId(e.target.value === '' ? '' : Number(e.target.value))}
-                      >
-                        <option value="">No Parent</option>
-                        {projectTasks
-                          .filter(t => t.Id !== task.Id && !descendantIds.has(t.Id)) // Exclude current task and all its descendants
-                          .map((t) => (
-                            <option key={t.Id} value={t.Id}>
-                              {project?.Prefix}-{t.DisplayId}: {t.Title}
-                            </option>
-                          ))
-                        }
-                      </select>
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="editTaskParent" className="form-label">Parent Task</label>
+                        <select
+                          className="form-select no-drag"
+                          id="editTaskParent"
+                          value={editParentId}
+                          onChange={(e) => setEditParentId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">No Parent</option>
+                          {projectTasks
+                            .filter(t => t.Id !== task.Id && !descendantIds.has(t.Id)) // Exclude current task and all its descendants
+                            .map((t) => (
+                              <option key={t.Id} value={t.Id}>
+                                {project?.Prefix}-{t.DisplayId}: {t.Title}
+                              </option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="editRemoteTaskId" className="form-label">Remote Task ID</label>
+                        <input
+                          type="number"
+                          className="form-control no-drag"
+                          id="editRemoteTaskId"
+                          placeholder="External ID"
+                          value={editRemoteId}
+                          onChange={(e) => setEditRemoteId(e.target.value === '' ? '' : Number(e.target.value))}
+                          disabled={!project?.TaskSourceId}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="modal-footer">

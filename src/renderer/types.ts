@@ -70,9 +70,9 @@ export interface DatabaseAPI {
 }
 
 export interface ProjectsAPI {
-  create: (project: { title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => Promise<any>;
+  create: (project: { title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number; taskSourceId?: number }) => Promise<any>;
   get: (id: number) => Promise<Project>;
-  update: (project: { id: number; title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number }) => Promise<any>;
+  update: (project: { id: number; title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number; taskSourceId?: number }) => Promise<any>;
 }
 
 export interface PeopleAPI {
@@ -105,6 +105,7 @@ export interface TasksAPI {
     assigneeId?: number; 
     statusId?: number;
     parentId?: number;
+    remoteTaskId?: number;
   }) => Promise<any>;
   update: (task: { 
     id: number;
@@ -113,12 +114,24 @@ export interface TasksAPI {
     assigneeId?: number; 
     statusId?: number;
     parentId?: number;
+    remoteTaskId?: number;
   }) => Promise<any>;
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
   findByDisplayId: (input: string, currentProjectId: number) => Promise<{ Id: number } | null>;
   updateSortOrders: (updates: { id: number; sortOrder: number }[]) => Promise<any>;
+}
+
+export interface TaskSourcesAPI {
+  getAll: () => Promise<TaskSource[]>;
+  create: (source: { name: string; type: string; config: string }) => Promise<any>;
+  update: (source: { id: number; name: string; type: string; config: string }) => Promise<any>;
+  delete: (id: number) => Promise<any>;
+}
+
+export interface ElectronAPI {
+  openExternal: (url: string) => Promise<void>;
 }
 
 declare global {
@@ -128,5 +141,7 @@ declare global {
     people: PeopleAPI;
     statuses: StatusesAPI;
     tasks: TasksAPI;
+    taskSources: TaskSourcesAPI;
+    electronAPI: ElectronAPI;
   }
 }

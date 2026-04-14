@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Project, Person } from '../types';
+import { Project, Person, TaskSource } from '../types';
 
 const ProjectList: React.FC = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [taskSources, setTaskSources] = useState<TaskSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal & Form State
@@ -15,17 +16,20 @@ const ProjectList: React.FC = () => {
   const [newStartDate, setNewStartDate] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [newOwnerId, setNewOwnerId] = useState<number | ''>('');
+  const [newTaskSourceId, setNewTaskSourceId] = useState<number | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [projectsData, peopleData] = await Promise.all([
+      const [projectsData, peopleData, taskSourcesData] = await Promise.all([
         window.database.query<Project>('SELECT * FROM Project ORDER BY Title ASC'),
-        window.people.getAll()
+        window.people.getAll(),
+        window.taskSources.getAll()
       ]);
       setProjects(projectsData);
       setPeople(peopleData);
+      setTaskSources(taskSourcesData);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -49,6 +53,7 @@ const ProjectList: React.FC = () => {
         startDate: newStartDate || undefined,
         dueDate: newDueDate || undefined,
         ownerId: newOwnerId === '' ? undefined : newOwnerId,
+        taskSourceId: newTaskSourceId === '' ? undefined : newTaskSourceId,
       });
       
       // Reset form and close modal
@@ -57,6 +62,7 @@ const ProjectList: React.FC = () => {
       setNewStartDate('');
       setNewDueDate('');
       setNewOwnerId('');
+      setNewTaskSourceId('');
       setShowModal(false);
       
       // Refresh list
@@ -200,21 +206,39 @@ const ProjectList: React.FC = () => {
                         />
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label htmlFor="projectOwner" className="form-label">Project Owner</label>
-                      <select
-                        className="form-select no-drag"
-                        id="projectOwner"
-                        value={newOwnerId}
-                        onChange={(e) => setNewOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
-                      >
-                        <option value="">No owner assigned</option>
-                        {people.map((person) => (
-                          <option key={person.Id} value={person.Id}>
-                            {person.Name}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="row g-3">
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="projectOwner" className="form-label">Project Owner</label>
+                        <select
+                          className="form-select no-drag"
+                          id="projectOwner"
+                          value={newOwnerId}
+                          onChange={(e) => setNewOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">No owner assigned</option>
+                          {people.map((person) => (
+                            <option key={person.Id} value={person.Id}>
+                              {person.Name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="taskSource" className="form-label">Task Source</label>
+                        <select
+                          className="form-select no-drag"
+                          id="taskSource"
+                          value={newTaskSourceId}
+                          onChange={(e) => setNewTaskSourceId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">No task source</option>
+                          {taskSources.map((source) => (
+                            <option key={source.Id} value={source.Id}>
+                              {source.Name} ({source.Type})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div className="row">
                       <div className="col-md-6 mb-3">

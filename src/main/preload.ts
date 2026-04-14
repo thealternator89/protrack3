@@ -63,3 +63,16 @@ contextBridge.exposeInMainWorld('tasks', {
   updateSortOrders: (updates: { id: number; sortOrder: number }[]) => 
     ipcRenderer.invoke('update-task-orders', updates),
 });
+
+contextBridge.exposeInMainWorld('taskSources', {
+  getAll: () => ipcRenderer.invoke('get-task-sources'),
+  create: (source: { name: string; type: string; config: string }) => 
+    ipcRenderer.invoke('create-task-source', source),
+  update: (source: { id: number; name: string; type: string; config: string }) => 
+    ipcRenderer.invoke('update-task-source', source),
+  delete: (id: number) => ipcRenderer.invoke('delete-task-source', id),
+});
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+});

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Project, Person, Task, TaskPrerequisite, Status } from '../types';
+import { Project, Person, Task, TaskPrerequisite, Status, TaskSource } from '../types';
 
 const ProjectView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +10,7 @@ const ProjectView: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [prerequisites, setPrerequisites] = useState<TaskPrerequisite[]>([]);
   const [statuses, setStatuses] = useState<Status[]>([]);
+  const [taskSources, setTaskSources] = useState<TaskSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Edit Modal & Form State
@@ -19,6 +20,7 @@ const ProjectView: React.FC = () => {
   const [editStartDate, setEditStartDate] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editOwnerId, setEditOwnerId] = useState<number | ''>('');
+  const [editTaskSourceId, setEditTaskSourceId] = useState<number | ''>('');
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Add Task Modal State
@@ -28,23 +30,26 @@ const ProjectView: React.FC = () => {
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<number | ''>('');
   const [newTaskStatusId, setNewTaskStatusId] = useState<number | ''>('');
   const [newTaskParentId, setNewTaskParentId] = useState<number | ''>('');
+  const [newTaskRemoteId, setNewTaskRemoteId] = useState<number | ''>('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
     try {
-      const [projectData, peopleData, taskData, statusData] = await Promise.all([
+      const [projectData, peopleData, taskData, statusData, taskSourcesData] = await Promise.all([
         window.projects.get(Number(id)),
         window.people.getAll(),
         window.tasks.getByProject(Number(id)),
-        window.statuses.getAll()
+        window.statuses.getAll(),
+        window.taskSources.getAll()
       ]);
       setProject(projectData);
       setPeople(peopleData);
       setTasks(taskData.tasks);
       setPrerequisites(taskData.prerequisites);
       setStatuses(statusData);
+      setTaskSources(taskSourcesData);
       
       if (statusData.length > 0 && newTaskStatusId === '') {
         const newStatus = statusData.find(s => s.IsNew === 1) || statusData[0];
@@ -57,6 +62,7 @@ const ProjectView: React.FC = () => {
         setEditStartDate(projectData.StartDate || '');
         setEditDueDate(projectData.DueDate || '');
         setEditOwnerId(projectData.OwnerId || '');
+        setEditTaskSourceId(projectData.TaskSourceId || '');
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -82,6 +88,7 @@ const ProjectView: React.FC = () => {
         startDate: editStartDate || undefined,
         dueDate: editDueDate || undefined,
         ownerId: editOwnerId === '' ? undefined : editOwnerId,
+        taskSourceId: editTaskSourceId === '' ? undefined : editTaskSourceId,
       });
       
       setShowEditModal(false);
@@ -117,11 +124,13 @@ const ProjectView: React.FC = () => {
         assigneeId: newTaskAssigneeId === '' ? undefined : newTaskAssigneeId,
         statusId: newTaskStatusId === '' ? undefined : (newTaskStatusId as number),
         parentId: newTaskParentId === '' ? undefined : newTaskParentId,
+        remoteTaskId: newTaskRemoteId === '' ? undefined : (newTaskRemoteId as number),
       });
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskAssigneeId('');
       setNewTaskParentId('');
+      setNewTaskRemoteId('');
       // Reset status to "New" status if available
       if (statuses.length > 0) {
         const newStatus = statuses.find(s => s.IsNew === 1) || statuses[0];
@@ -489,6 +498,18 @@ const ProjectView: React.FC = () => {
                           ))}
                         </select>
                       </div>
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="remoteTaskId" className="form-label">Remote Task ID</label>
+                        <input
+                          type="number"
+                          className="form-control no-drag"
+                          id="remoteTaskId"
+                          placeholder="External ID"
+                          value={newTaskRemoteId}
+                          onChange={(e) => setNewTaskRemoteId(e.target.value === '' ? '' : Number(e.target.value))}
+                          disabled={!project.TaskSourceId}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="modal-footer">
@@ -551,21 +572,39 @@ const ProjectView: React.FC = () => {
                         />
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label htmlFor="editOwner" className="form-label">Project Owner</label>
-                      <select
-                        className="form-select no-drag"
-                        id="editOwner"
-                        value={editOwnerId}
-                        onChange={(e) => setEditOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
-                      >
-                        <option value="">No owner assigned</option>
-                        {people.map((person) => (
-                          <option key={person.Id} value={person.Id}>
-                            {person.Name}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="row g-3">
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="editOwner" className="form-label">Project Owner</label>
+                        <select
+                          className="form-select no-drag"
+                          id="editOwner"
+                          value={editOwnerId}
+                          onChange={(e) => setEditOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">No owner assigned</option>
+                          {people.map((person) => (
+                            <option key={person.Id} value={person.Id}>
+                              {person.Name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="editTaskSource" className="form-label">Task Source</label>
+                        <select
+                          className="form-select no-drag"
+                          id="editTaskSource"
+                          value={editTaskSourceId}
+                          onChange={(e) => setEditTaskSourceId(e.target.value === '' ? '' : Number(e.target.value))}
+                        >
+                          <option value="">No task source</option>
+                          {taskSources.map((source) => (
+                            <option key={source.Id} value={source.Id}>
+                              {source.Name} ({source.Type})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div className="row">
                       <div className="col-md-6 mb-3">

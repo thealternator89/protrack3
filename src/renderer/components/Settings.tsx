@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PeopleTab from './settings/PeopleTab';
 import StatusesTab from './settings/StatusesTab';
+import TaskSourcesTab from './settings/TaskSourcesTab';
 
-type TabType = 'statuses' | 'people';
+type TabType = 'statuses' | 'people' | 'task-sources';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -44,11 +45,20 @@ const Settings: React.FC = () => {
                   <i className="fas fa-users me-2"></i> People
                 </button>
               </li>
+              <li className="nav-item">
+                <button 
+                  className={`nav-link no-drag ${activeTab === 'task-sources' ? 'active fw-bold' : ''}`}
+                  onClick={() => setActiveTab('task-sources')}
+                >
+                  <i className="fas fa-cloud-download-alt me-2"></i> Task Sources
+                </button>
+              </li>
             </ul>
           </div>
           <div className="card-body p-4">
             {activeTab === 'statuses' && <StatusesTab />}
             {activeTab === 'people' && <PeopleTab />}
+            {activeTab === 'task-sources' && <TaskSourcesTab />}
           </div>
         </div>
       </div>
