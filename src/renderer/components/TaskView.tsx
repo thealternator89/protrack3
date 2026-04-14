@@ -251,12 +251,12 @@ const TaskView: React.FC = () => {
                 <div>
                   {task.AssigneeId ? (() => {
                     const person = people.find(p => p.Id === task.AssigneeId);
-                    const color = person?.Color || 'info';
-                    const textColor = ['warning', 'light', 'info'].includes(color) ? 'text-dark' : 'text-white';
+                    const colorClass = person?.Color ? `text-${person.Color}` : 'text-info';
                     return (
-                      <span className={`badge bg-${color} ${textColor} fs-6 fw-normal`}>
+                      <div className="d-flex align-items-center fs-6">
+                        <i className={`fas fa-user me-2 w-16 text-center ${colorClass}`}></i>
                         {task.AssigneeName}
-                      </span>
+                      </div>
                     );
                   })() : (
                     <span className="text-muted italic">Unassigned</span>
@@ -280,7 +280,8 @@ const TaskView: React.FC = () => {
                     }
 
                     return (
-                      <span className={`badge bg-${color} fs-6 fw-normal`}>
+                      <span className={`badge rounded-pill bg-${color} fs-6 fw-normal`}>
+                        {!ready && prerequisites.length > 0 && <i className="fas fa-exclamation-triangle me-1" title={`Blocked by ${prerequisites.filter(p => p.PrerequisiteIsComplete !== 1 && p.Type !== 'End').length} prerequisite(s)`}></i>}
                         {isPrerequisite && <i className="fas fa-link me-1" title={`Prerequisite for ${dependedOnBy.length} task(s)`}></i>}
                         {task.StatusLabel}
                       </span>

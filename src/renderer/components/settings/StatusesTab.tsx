@@ -148,15 +148,15 @@ const StatusesTab: React.FC = () => {
                     {status.Label}
                     <span className="ms-2">
                       {status.IsNew === 1 ? (
-                        <span className="badge bg-info text-dark">
+                        <span className="badge rounded-pill bg-info text-dark">
                           <i className="fas fa-plus-circle me-1"></i> New
                         </span>
                       ) : status.IsComplete === 1 ? (
-                        <span className="badge bg-success">
+                        <span className="badge rounded-pill bg-success">
                           <i className="fas fa-check-circle me-1"></i> Completed
                         </span>
                       ) : (
-                        <span className="badge bg-secondary">
+                        <span className="badge rounded-pill bg-secondary">
                           <i className="fas fa-times-circle me-1"></i> Incomplete
                         </span>
                       )}

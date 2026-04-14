@@ -295,11 +295,13 @@ const ProjectView: React.FC = () => {
                           <span className="text-muted small italic">Unassigned</span>
                         )}
                       </td>
-                      <td className="text-center">
+                        <td className="text-center">
                         {task.StatusLabel ? (() => {
                           const status = statuses.find(s => s.Id === task.StatusId);
                           const isNew = !!status?.IsNew;
                           const ready = isReadyToStart(task);
+                          const taskPrereqs = prerequisites.filter(p => p.TaskId === task.Id);
+                          const hasPrerequisites = taskPrereqs.length > 0;
                           
                           let color = 'secondary';
                           if (task.IsComplete) {
@@ -309,7 +311,8 @@ const ProjectView: React.FC = () => {
                           }
 
                           return (
-                            <span className={`badge bg-${color} fw-normal d-inline-block text-truncate`}>
+                            <span className={`badge rounded-pill bg-${color} fw-normal d-inline-block text-truncate`}>
+                              {!ready && hasPrerequisites && <i className="fas fa-exclamation-triangle me-1" title={`Blocked by ${taskPrereqs.filter(p => p.PrerequisiteIsComplete !== 1 && p.Type !== 'End').length} prerequisite(s)`}></i>}
                               {isPrerequisite && <i className="fas fa-link me-1" title={`Prerequisite for ${dependentTasks.length} task(s)`}></i>}
                               {task.StatusLabel}
                             </span>
