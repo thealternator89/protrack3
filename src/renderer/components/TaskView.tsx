@@ -257,7 +257,9 @@ const TaskView: React.FC = () => {
                 </li>
               )}
               <li className="breadcrumb-item active" aria-current="page">
-                {project ? `${project.Prefix}-${task.DisplayId}` : `Task #${task.Id}`}
+                <span className="badge bg-secondary text-white fw-normal">
+                  {project ? `${project.Prefix}-${task.DisplayId}` : `Task #${task.Id}`}
+                </span>
               </li>
             </ol>
           </nav>
@@ -267,7 +269,6 @@ const TaskView: React.FC = () => {
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <div className="d-flex align-items-center gap-3">
                   <h2 className="mb-0 h4">
-                    <span className="text-muted small fw-bold me-2">{project?.Prefix}-{task.DisplayId}</span>
                     {task.Title}
                   </h2>
                   {task.StatusLabel && (
