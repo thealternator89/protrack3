@@ -201,32 +201,71 @@ const TaskView: React.FC = () => {
   }
 
   return (
-    <div className="container-fluid py-4 overflow-auto h-100">
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <nav aria-label="breadcrumb" className="mb-4">
-            <ol className="breadcrumb">
-              <li className="breadcrumb-item"><Link to="/">Projects</Link></li>
-              {project && (
-                <li className="breadcrumb-item">
-                  <Link to={`/project/${project.Id}`}>{project.Title}</Link>
-                </li>
-              )}
-              <li className="breadcrumb-item active" aria-current="page">
-                <span className="badge bg-secondary text-white fw-normal">
+    <div className="main-content">
+      <div className="container mt-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          {project ? (
+            <button className="btn btn-link p-0 text-decoration-none no-drag" onClick={() => navigate(`/project/${project.Id}`)}>
+              <i className="fas fa-arrow-left me-2"></i>Back to {project.Title}
+            </button>
+          ) : (
+            <button className="btn btn-link p-0 text-decoration-none no-drag" onClick={() => navigate(-1)}>
+              <i className="fas fa-arrow-left me-2"></i>Back
+            </button>
+          )}
+          <div className="d-flex gap-2">
+            {remoteUrl && (
+              <button 
+                className="btn btn-outline-info no-drag"
+                onClick={() => window.electronAPI.openExternal(remoteUrl)}
+                title="View in External Source"
+              >
+                <i className="fas fa-external-link-alt me-1"></i> View
+              </button>
+            )}
+            <button 
+              className="btn btn-outline-primary no-drag"
+              onClick={() => setShowEditTaskModal(true)}
+            >
+              <i className="fas fa-edit me-1"></i> Edit Task
+            </button>
+          </div>
+        </div>
+
+        <div className="card shadow-sm border-0 mb-4">
+          <div className="card-body p-4">
+            <div className="mb-4">
+              <div className="d-flex align-items-center mb-1">
+                <span className="badge bg-light text-dark border me-3 fs-6 py-2">
                   {project ? `${project.Prefix}-${task.DisplayId}` : `Task #${task.Id}`}
                 </span>
-              </li>
-            </ol>
-          </nav>
+                <h3 className="card-title mb-0 fw-bold">
+                  {task.Title}
+                </h3>
+              </div>
+            </div>
 
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-white py-3">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <div className="d-flex align-items-center gap-3">
-                  <h2 className="mb-0 h4">
-                    {task.Title}
-                  </h2>
+            <div className="row mb-4 pt-3 border-top">
+              <div className={task.ParentId ? "col-md-4" : "col-md-6"}>
+                <label className="text-muted small text-uppercase fw-bold mb-1">Assignee</label>
+                <div>
+                  {task.AssigneeId ? (() => {
+                    const person = people.find(p => p.Id === task.AssigneeId);
+                    const color = person?.Color || 'info';
+                    const textColor = ['warning', 'light', 'info'].includes(color) ? 'text-dark' : 'text-white';
+                    return (
+                      <span className={`badge bg-${color} ${textColor} fs-6 fw-normal`}>
+                        {task.AssigneeName}
+                      </span>
+                    );
+                  })() : (
+                    <span className="text-muted italic">Unassigned</span>
+                  )}
+                </div>
+              </div>
+              <div className={task.ParentId ? "col-md-4" : "col-md-6"}>
+                <label className="text-muted small text-uppercase fw-bold mb-1">Status</label>
+                <div>
                   {task.StatusLabel && (() => {
                     const status = statuses.find(s => s.Id === task.StatusId);
                     const isNew = !!status?.IsNew;
@@ -248,144 +287,95 @@ const TaskView: React.FC = () => {
                     );
                   })()}
                 </div>
-                <div className="d-flex align-items-center gap-2">
-                  {remoteUrl && (
-                    <button 
-                      className="btn btn-sm btn-outline-info no-drag"
-                      onClick={() => window.electronAPI.openExternal(remoteUrl)}
-                      title="View in External Source"
-                    >
-                      <i className="fas fa-external-link-alt me-1"></i> View
-                    </button>
-                  )}
-                  <button 
-                    className="btn btn-sm btn-outline-primary no-drag"
-                    onClick={() => setShowEditTaskModal(true)}
-                  >
-                    <i className="fas fa-edit me-1"></i> Edit
-                  </button>
-                </div>
               </div>
-              <div className="d-flex flex-wrap gap-2">
-              </div>
-            </div>
-            <div className="card-body">
-              <div className="row mb-4">
-                <div className="col-md-6">
-                  <label className="text-muted small text-uppercase fw-bold mb-1">Assignee</label>
+              {task.ParentId && (
+                <div className="col-md-4">
+                  <label className="text-muted small text-uppercase fw-bold mb-1">Parent Task</label>
                   <div>
-                    {task.AssigneeId ? (() => {
-                      const person = people.find(p => p.Id === task.AssigneeId);
-                      const color = person?.Color || 'info';
-                      const textColor = ['warning', 'light', 'info'].includes(color) ? 'text-dark' : 'text-white';
-                      return (
-                        <span className={`badge bg-${color} ${textColor} fs-6 fw-normal`}>
-                          {task.AssigneeName}
-                        </span>
-                      );
-                    })() : (
-                      <span className="text-muted italic">Unassigned</span>
-                    )}
+                    <Link to={`/task/${task.ParentId}`} className="text-decoration-none fw-bold">
+                      {task.ParentTitle || `Task #${task.ParentId}`}
+                    </Link>
                   </div>
                 </div>
-                {task.ParentId && (
-                  <div className="col-md-6">
-                    <label className="text-muted small text-uppercase fw-bold mb-1">Parent Task</label>
-                    <div>
-                      <Link to={`/task/${task.ParentId}`} className="text-decoration-none fw-bold">
-                        {task.ParentTitle || `Task #${task.ParentId}`}
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
+            </div>
 
-              <div className="mb-4">
-                <label className="text-muted small text-uppercase fw-bold mb-2 d-block">Description</label>
-                <div className="p-3 bg-light rounded border mb-4 description-content" style={{ minHeight: '100px' }}>
-                  {task.Description ? (
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        a: ({ ...props }) => (
-                          <a 
-                            {...props} 
-                            onClick={(e) => {
-                              if (props.href) {
-                                e.preventDefault();
-                                window.electronAPI.openExternal(props.href);
-                              }
-                            }}
-                            href={props.href}
-                          />
-                        )
-                      }}
-                    >
-                      {task.Description}
-                    </ReactMarkdown>
-                  ) : (
-                    <span className="text-muted italic">No description provided.</span>
-                  )}
-                </div>
-
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <label className="text-muted small text-uppercase fw-bold mb-0">Prerequisites</label>
-                  <button 
-                    className="btn btn-sm btn-outline-primary no-drag"
-                    onClick={() => {
-                      setPrereqDisplayId('');
-                      setPrereqType('Start');
-                      setShowAddPrereqModal(true);
+            <div className="mb-4">
+              <label className="text-muted small text-uppercase fw-bold mb-2 d-block">Description</label>
+              <div className="p-3 bg-light rounded border mb-4 description-content" style={{ minHeight: '100px' }}>
+                {task.Description ? (
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ ...props }) => (
+                        <a 
+                          {...props} 
+                          onClick={(e) => {
+                            if (props.href) {
+                              e.preventDefault();
+                              window.electronAPI.openExternal(props.href);
+                            }
+                          }}
+                          href={props.href}
+                        />
+                      )
                     }}
                   >
-                    <i className="fas fa-plus me-1"></i> Add
-                  </button>
-                </div>
-                
-                {prerequisites.length > 0 ? (
-                  <div className="list-group shadow-sm">
-                    {prerequisites.map((prereq) => (
-                      <div key={prereq.PrerequisiteTaskId} className="list-group-item d-flex justify-content-between align-items-center">
-                        <div className="d-flex align-items-center flex-grow-1">
-                          <Link to={`/task/${prereq.PrerequisiteTaskId}`} className="text-decoration-none fw-bold me-2">
-                            {prereq.PrerequisiteTaskTitle || `Task #${prereq.PrerequisiteTaskId}`}
-                          </Link>
-                          {prereq.PrerequisiteIsComplete ? (
-                            <span className="badge bg-success small fw-normal">Complete</span>
-                          ) : (
-                            <span className="badge bg-secondary small fw-normal">Pending</span>
-                          )}
-                        </div>
-                        <div className="d-flex align-items-center gap-3">
-                          <span className="badge bg-light text-dark border fw-normal">
-                            {prereq.Type}
-                          </span>
-                          <button 
-                            className="btn btn-sm btn-link p-0 no-drag"
-                            onClick={() => openEditModal(prereq)}
-                            title="Edit Relationship"
-                          >
-                            <i className="fas fa-edit text-muted"></i>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                    {task.Description}
+                  </ReactMarkdown>
                 ) : (
-                  <div className="text-muted italic p-2 border rounded bg-light small">
-                    No prerequisites defined for this task.
-                  </div>
+                  <span className="text-muted italic">No description provided.</span>
                 )}
               </div>
 
-              <div className="d-flex gap-2">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h4 className="mb-0">Prerequisites</h4>
                 <button 
-                  className="btn btn-outline-secondary no-drag"
-                  onClick={() => navigate(-1)}
+                  className="btn btn-sm btn-outline-primary no-drag"
+                  onClick={() => {
+                    setPrereqDisplayId('');
+                    setPrereqType('Start');
+                    setShowAddPrereqModal(true);
+                  }}
                 >
-                  <i className="fas fa-arrow-left me-1"></i> Back
+                  <i className="fas fa-plus me-1"></i> Add
                 </button>
               </div>
+              
+              {prerequisites.length > 0 ? (
+                <div className="list-group shadow-sm">
+                  {prerequisites.map((prereq) => (
+                    <div key={prereq.PrerequisiteTaskId} className="list-group-item d-flex justify-content-between align-items-center">
+                      <div className="d-flex align-items-center flex-grow-1">
+                        <Link to={`/task/${prereq.PrerequisiteTaskId}`} className="text-decoration-none fw-bold me-2">
+                          {prereq.PrerequisiteTaskTitle || `Task #${prereq.PrerequisiteTaskId}`}
+                        </Link>
+                        {prereq.PrerequisiteIsComplete ? (
+                          <span className="badge bg-success small fw-normal">Complete</span>
+                        ) : (
+                          <span className="badge bg-secondary small fw-normal">Pending</span>
+                        )}
+                      </div>
+                      <div className="d-flex align-items-center gap-3">
+                        <span className="badge bg-light text-dark border fw-normal">
+                          {prereq.Type}
+                        </span>
+                        <button 
+                          className="btn btn-sm btn-link p-0 no-drag"
+                          onClick={() => openEditModal(prereq)}
+                          title="Edit Relationship"
+                        >
+                          <i className="fas fa-edit text-muted"></i>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-muted italic p-2 border rounded bg-light small">
+                  No prerequisites defined for this task.
+                </div>
+              )}
             </div>
           </div>
         </div>
