@@ -57,14 +57,20 @@ npm run make
 ├── migrations/         # SQLite database migration files
 ├── src/
 │   ├── main/           # Main process logic (Node.js environment)
+│   │   ├── ipc/        # Modular IPC registration handlers
+│   │   ├── repositories/ # Repository layer for database access
+│   │   ├── services/   # Business logic services (e.g., Azure DevOps)
 │   │   ├── database.ts # Database initialization and migration logic
-│   │   ├── index.ts    # Main process entry point & IPC handlers
-│   │   └── preload.ts  # Preload script for IPC and secure bridge
-│   └── renderer/       # Renderer process (React environment)
-│       ├── App.tsx     # Main React component & Routing
-│       ├── components/ # Modular UI components
-│       ├── types.ts    # Shared TypeScript interfaces
-│       └── renderer.tsx # Renderer entry point (React mount)
+│   │   ├── index.ts    # Main process entry point
+│   │   ├── preload.ts  # Preload script for IPC and secure bridge
+│   │   └── window.ts   # Window management logic
+│   ├── renderer/       # Renderer process (React environment)
+│   │   ├── App.tsx     # Main React component & Routing
+│   │   ├── components/ # Modular UI components
+│   │   ├── types.ts    # Renderer-specific types (imports from shared)
+│   │   └── renderer.tsx # Renderer entry point (React mount)
+│   └── shared/         # Common types shared between processes
+│       └── types.ts    # Shared TypeScript interfaces
 ├── forge.config.ts     # Electron Forge configuration
 ├── tsconfig.json       # TypeScript configuration
 └── webpack.config.*    # Webpack configurations
