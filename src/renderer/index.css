@@ -55,3 +55,11 @@ body {
 .w-16 {
   width: 16px;
 }
+
+.description-content p:last-child {
+  margin-bottom: 0;
+}
+
+.description-content a {
+  cursor: pointer;
+}

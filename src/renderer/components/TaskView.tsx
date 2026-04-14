@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Task, Person, Status, Project, TaskPrerequisite, TaskSource } from '../types';
 
 const TaskView: React.FC = () => {
@@ -336,8 +338,30 @@ const TaskView: React.FC = () => {
 
               <div className="mb-4">
                 <label className="text-muted small text-uppercase fw-bold mb-2 d-block">Description</label>
-                <div className="p-3 bg-light rounded border mb-4" style={{ minHeight: '100px', whiteSpace: 'pre-wrap' }}>
-                  {task.Description || <span className="text-muted italic">No description provided.</span>}
+                <div className="p-3 bg-light rounded border mb-4 description-content" style={{ minHeight: '100px' }}>
+                  {task.Description ? (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ ...props }) => (
+                          <a 
+                            {...props} 
+                            onClick={(e) => {
+                              if (props.href) {
+                                e.preventDefault();
+                                window.electronAPI.openExternal(props.href);
+                              }
+                            }}
+                            href={props.href}
+                          />
+                        )
+                      }}
+                    >
+                      {task.Description}
+                    </ReactMarkdown>
+                  ) : (
+                    <span className="text-muted italic">No description provided.</span>
+                  )}
                 </div>
 
                 <div className="d-flex justify-content-between align-items-center mb-2">

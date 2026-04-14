@@ -44,11 +44,6 @@ app.on('ready', async () => {
   try {
     await initDatabase();
     console.log('Database initialized successfully');
-    
-    // Example: verify migrations worked
-    const db = getDatabase();
-    const tables = await db.all("SELECT name FROM sqlite_master WHERE type='table'");
-    console.log('Tables in database:', tables.map(t => t.name).join(', '));
   } catch (error) {
     console.error('Failed to initialize database:', error);
   }
