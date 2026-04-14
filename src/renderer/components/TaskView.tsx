@@ -227,11 +227,26 @@ const TaskView: React.FC = () => {
                   <h2 className="mb-0 h4">
                     {task.Title}
                   </h2>
-                  {task.StatusLabel && (
-                    <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fs-6 fw-normal`}>
-                      {task.StatusLabel}
-                    </span>
-                  )}
+                  {task.StatusLabel && (() => {
+                    const status = statuses.find(s => s.Id === task.StatusId);
+                    const isNew = !!status?.IsNew;
+                    const ready = prerequisites.every(p => p.PrerequisiteIsComplete === 1 || p.Type === 'End');
+                    const isPrerequisite = dependedOnBy.length > 0 && !task.IsComplete;
+                    
+                    let color = 'secondary';
+                    if (task.IsComplete) {
+                      color = 'success';
+                    } else if (isNew) {
+                      color = ready ? 'info' : 'danger';
+                    }
+
+                    return (
+                      <span className={`badge bg-${color} fs-6 fw-normal`}>
+                        {isPrerequisite && <i className="fas fa-link me-1" title={`Prerequisite for ${dependedOnBy.length} task(s)`}></i>}
+                        {task.StatusLabel}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="d-flex align-items-center gap-2">
                   {remoteUrl && (
@@ -252,12 +267,6 @@ const TaskView: React.FC = () => {
                 </div>
               </div>
               <div className="d-flex flex-wrap gap-2">
-                {!task.IsComplete && dependedOnBy.length > 0 && (
-                  <span className="badge bg-info text-dark fw-normal">
-                    <i className="fas fa-link me-1"></i>
-                    Prerequisite for: {dependedOnBy.length}
-                  </span>
-                )}
               </div>
             </div>
             <div className="card-body">

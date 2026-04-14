@@ -243,7 +243,7 @@ const ProjectView: React.FC = () => {
                   <th style={{ width: '80px' }}>ID</th>
                   <th>Title</th>
                   <th style={{ width: '150px' }}>Assignee</th>
-                  <th style={{ width: '150px' }}>Status</th>
+                  <th style={{ width: '150px' }} className="text-center">Status</th>
                   <th style={{ width: '50px' }}></th>
                 </tr>
               </thead>
@@ -280,17 +280,6 @@ const ProjectView: React.FC = () => {
                           </Link>
                         </div>
                         <div className="mt-1">
-                          {notReady && (
-                            <span className="badge bg-warning text-dark me-2 fw-normal small">
-                              <i className="fas fa-pause-circle me-1"></i>Not Ready
-                            </span>
-                          )}
-                          {isPrerequisite && (
-                            <span className="badge bg-info text-dark fw-normal small">
-                              <i className="fas fa-link me-1"></i>
-                              Prerequisite for: {dependentTasks.length}
-                            </span>
-                          )}
                         </div>
                       </td>
                       <td>
@@ -307,12 +296,26 @@ const ProjectView: React.FC = () => {
                           <span className="text-muted small italic">Unassigned</span>
                         )}
                       </td>
-                      <td>
-                        {task.StatusLabel ? (
-                          <span className={`badge ${task.IsComplete ? 'bg-success' : 'bg-primary'} fw-normal d-inline-block text-truncate`}>
-                            {task.StatusLabel}
-                          </span>
-                        ) : (
+                      <td className="text-center">
+                        {task.StatusLabel ? (() => {
+                          const status = statuses.find(s => s.Id === task.StatusId);
+                          const isNew = !!status?.IsNew;
+                          const ready = isReadyToStart(task);
+                          
+                          let color = 'secondary';
+                          if (task.IsComplete) {
+                            color = 'success';
+                          } else if (isNew) {
+                            color = ready ? 'info' : 'danger';
+                          }
+
+                          return (
+                            <span className={`badge bg-${color} fw-normal d-inline-block text-truncate`}>
+                              {isPrerequisite && <i className="fas fa-link me-1" title={`Prerequisite for ${dependentTasks.length} task(s)`}></i>}
+                              {task.StatusLabel}
+                            </span>
+                          );
+                        })() : (
                           <span className="text-muted small italic">No status</span>
                         )}
                       </td>
