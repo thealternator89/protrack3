@@ -3,6 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Task, Person, Status, Project, TaskPrerequisite, TaskSource } from '../types';
+import Modal from './shared/Modal';
+import LoadingSpinner, { ButtonSpinner } from './shared/LoadingSpinner';
+import TaskModal, { TaskFormData } from './shared/TaskModal';
 
 const TaskView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,24 +42,6 @@ const TaskView: React.FC = () => {
     return null;
   }, [task, project, taskSources]);
 
-  // Calculate descendant IDs to prevent circular parent assignments
-  const descendantIds = useMemo(() => {
-    if (!task || projectTasks.length === 0) return new Set<number>();
-    
-    const ids = new Set<number>();
-    const findChildren = (parentId: number) => {
-      projectTasks.forEach(t => {
-        if (t.ParentId === parentId) {
-          ids.add(t.Id);
-          findChildren(t.Id);
-        }
-      });
-    };
-    
-    findChildren(task.Id);
-    return ids;
-  }, [task, projectTasks]);
-
   // Modal State
   const [showAddPrereqModal, setShowAddPrereqModal] = useState(false);
   const [showEditPrereqModal, setShowEditPrereqModal] = useState(false);
@@ -66,15 +51,6 @@ const TaskView: React.FC = () => {
   const [isProcessingPrereq, setIsProcessingPrereq] = useState(false);
   const [editingPrereq, setEditingPrereq] = useState<TaskPrerequisite | null>(null);
 
-  // Edit Task Form State
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editAssigneeId, setEditAssigneeId] = useState<number | ''>('');
-  const [editStatusId, setEditStatusId] = useState<number | ''>('');
-  const [editParentId, setEditParentId] = useState<number | ''>('');
-  const [editRemoteId, setEditRemoteId] = useState<number | ''>('');
-  const [isUpdatingTask, setIsUpdatingTask] = useState(false);
-  
   // Delete confirmation state
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
   const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -114,40 +90,18 @@ const TaskView: React.FC = () => {
     };
   }, [id]);
 
-  const handleUpdateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!task || !editTitle.trim()) return;
-
-    setIsUpdatingTask(true);
-    try {
-      await window.tasks.update({
-        id: task.Id,
-        title: editTitle.trim(),
-        description: editDescription.trim() || undefined,
-        assigneeId: editAssigneeId === '' ? undefined : editAssigneeId,
-        statusId: editStatusId === '' ? undefined : (editStatusId as number),
-        parentId: editParentId === '' ? undefined : editParentId,
-        remoteTaskId: editRemoteId === '' ? undefined : (editRemoteId as number),
-      });
-      setShowEditTaskModal(false);
-      await fetchData();
-    } catch (error) {
-      console.error('Failed to update task:', error);
-      alert('Error updating task. Please try again.');
-    } finally {
-      setIsUpdatingTask(false);
-    }
-  };
-
-  const openEditTaskModal = () => {
+  const handleUpdateTask = async (data: TaskFormData) => {
     if (!task) return;
-    setEditTitle(task.Title);
-    setEditDescription(task.Description || '');
-    setEditAssigneeId(task.AssigneeId || '');
-    setEditStatusId(task.StatusId || '');
-    setEditParentId(task.ParentId || '');
-    setEditRemoteId(task.RemoteTaskId || '');
-    setShowEditTaskModal(true);
+    await window.tasks.update({
+      id: task.Id,
+      title: data.title,
+      description: data.description,
+      assigneeId: data.assigneeId,
+      statusId: data.statusId,
+      parentId: data.parentId,
+      remoteTaskId: data.remoteTaskId,
+    });
+    await fetchData();
   };
 
   const handleAddPrerequisite = async (e: React.FormEvent) => {
@@ -232,11 +186,7 @@ const TaskView: React.FC = () => {
   if (loading) {
     return (
       <div className="container mt-4">
-        <div className="d-flex justify-content-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }
@@ -295,7 +245,7 @@ const TaskView: React.FC = () => {
                   )}
                   <button 
                     className="btn btn-sm btn-outline-primary no-drag"
-                    onClick={openEditTaskModal}
+                    onClick={() => setShowEditTaskModal(true)}
                   >
                     <i className="fas fa-edit me-1"></i> Edit
                   </button>
@@ -427,243 +377,113 @@ const TaskView: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Prerequisite Modal */}
-      {showAddPrereqModal && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">Add Prerequisite</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowAddPrereqModal(false)}></button>
-                </div>
-                <form onSubmit={handleAddPrerequisite}>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label htmlFor="prereqTaskId" className="form-label">Prerequisite Task ID</label>
-                      <input
-                        type="text"
-                        className="form-control no-drag"
-                        id="prereqTaskId"
-                        placeholder="Enter ID (e.g., 42 or ABC-42)"
-                        value={prereqDisplayId}
-                        onChange={(e) => setPrereqDisplayId(e.target.value)}
-                        required
-                        autoFocus
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="prereqType" className="form-label">Relationship Type</label>
-                      <select
-                        className="form-select no-drag"
-                        id="prereqType"
-                        value={prereqType}
-                        onChange={(e) => setPrereqType(e.target.value)}
-                      >
-                        <option value="Start">Start</option>
-                        <option value="End">End</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowAddPrereqModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary no-drag" disabled={isProcessingPrereq}>
-                      {isProcessingPrereq ? (
-                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      ) : 'Add Prerequisite'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+      <Modal
+        show={showAddPrereqModal}
+        title="Add Prerequisite"
+        onClose={() => setShowAddPrereqModal(false)}
+        onSubmit={handleAddPrerequisite}
+        isSubmitting={isProcessingPrereq}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowAddPrereqModal(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary no-drag" disabled={isProcessingPrereq}>
+              {isProcessingPrereq ? <ButtonSpinner label="" className="" /> : 'Add Prerequisite'}
+            </button>
+          </>
+        }
+      >
+        <div className="mb-3">
+          <label htmlFor="prereqTaskId" className="form-label">Prerequisite Task ID</label>
+          <input
+            type="text"
+            className="form-control no-drag"
+            id="prereqTaskId"
+            placeholder="Enter ID (e.g., 42 or ABC-42)"
+            value={prereqDisplayId}
+            onChange={(e) => setPrereqDisplayId(e.target.value)}
+            required
+            autoFocus
+          />
+        </div>
+        <div className="mb-3">
+          <label htmlFor="prereqType" className="form-label">Relationship Type</label>
+          <select
+            className="form-select no-drag"
+            id="prereqType"
+            value={prereqType}
+            onChange={(e) => setPrereqType(e.target.value)}
+          >
+            <option value="Start">Start</option>
+            <option value="End">End</option>
+          </select>
+        </div>
+      </Modal>
 
-      {/* Edit Prerequisite Modal */}
-      {showEditPrereqModal && editingPrereq && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">Edit Prerequisite</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowEditPrereqModal(false)}></button>
-                </div>
-                <form onSubmit={handleEditPrerequisite}>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label className="form-label">Prerequisite Task</label>
-                      <input
-                        type="text"
-                        className="form-control bg-light"
-                        value={editingPrereq.PrerequisiteTaskTitle || `Task #${editingPrereq.PrerequisiteTaskId}`}
-                        disabled
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="editPrereqType" className="form-label">Relationship Type</label>
-                      <select
-                        className="form-select no-drag"
-                        id="editPrereqType"
-                        value={prereqType}
-                        onChange={(e) => setPrereqType(e.target.value)}
-                        autoFocus
-                      >
-                        <option value="Start">Start</option>
-                        <option value="End">End</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="modal-footer d-flex justify-content-between">
-                    <button 
-                      type="button" 
-                      className={`btn ${isDeleteConfirming ? 'btn-danger' : 'btn-outline-danger'} no-drag`}
-                      onClick={handleDeletePrerequisite}
-                      disabled={isProcessingPrereq}
-                    >
-                      {isDeleteConfirming ? 'Are you sure?' : (
-                        <><i className="fas fa-trash-alt me-1"></i> Delete</>
-                      )}
-                    </button>
-                    <div>
-                      <button type="button" className="btn btn-secondary no-drag me-2" onClick={() => setShowEditPrereqModal(false)}>Cancel</button>
-                      <button type="submit" className="btn btn-primary no-drag" disabled={isProcessingPrereq}>
-                        {isProcessingPrereq ? (
-                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        ) : 'Update'}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              </div>
+      <Modal
+        show={showEditPrereqModal && !!editingPrereq}
+        title="Edit Prerequisite"
+        onClose={() => setShowEditPrereqModal(false)}
+        onSubmit={handleEditPrerequisite}
+        isSubmitting={isProcessingPrereq}
+        footer={
+          <div className="d-flex justify-content-between w-100">
+            <button 
+              type="button" 
+              className={`btn ${isDeleteConfirming ? 'btn-danger' : 'btn-outline-danger'} no-drag`}
+              onClick={handleDeletePrerequisite}
+              disabled={isProcessingPrereq}
+            >
+              {isDeleteConfirming ? 'Are you sure?' : (
+                <><i className="fas fa-trash-alt me-1"></i> Delete</>
+              )}
+            </button>
+            <div>
+              <button type="button" className="btn btn-secondary no-drag me-2" onClick={() => setShowEditPrereqModal(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary no-drag" disabled={isProcessingPrereq}>
+                {isProcessingPrereq ? <ButtonSpinner label="" className="" /> : 'Update'}
+              </button>
             </div>
           </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+        }
+      >
+        {editingPrereq && (
+          <>
+            <div className="mb-3">
+              <label className="form-label">Prerequisite Task</label>
+              <input
+                type="text"
+                className="form-control bg-light"
+                value={editingPrereq.PrerequisiteTaskTitle || `Task #${editingPrereq.PrerequisiteTaskId}`}
+                disabled
+              />
+            </div>
+            <div className="mb-3">
+              <label htmlFor="editPrereqType" className="form-label">Relationship Type</label>
+              <select
+                className="form-select no-drag"
+                id="editPrereqType"
+                value={prereqType}
+                onChange={(e) => setPrereqType(e.target.value)}
+                autoFocus
+              >
+                <option value="Start">Start</option>
+                <option value="End">End</option>
+              </select>
+            </div>
+          </>
+        )}
+      </Modal>
 
-      {/* Edit Task Modal */}
-      {showEditTaskModal && task && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">Edit Task</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowEditTaskModal(false)}></button>
-                </div>
-                <form onSubmit={handleUpdateTask}>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label htmlFor="editTaskTitle" className="form-label">Task Title</label>
-                      <input
-                        type="text"
-                        className="form-control no-drag"
-                        id="editTaskTitle"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        required
-                        autoFocus
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="editTaskDescription" className="form-label">Description</label>
-                      <textarea
-                        className="form-control no-drag"
-                        id="editTaskDescription"
-                        rows={3}
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                      />
-                    </div>
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="editTaskAssignee" className="form-label">Assignee</label>
-                        <select
-                          className="form-select no-drag"
-                          id="editTaskAssignee"
-                          value={editAssigneeId}
-                          onChange={(e) => setEditAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">Unassigned</option>
-                          {people.map((person) => (
-                            <option key={person.Id} value={person.Id}>
-                              {person.Name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="editTaskStatus" className="form-label">Status</label>
-                        <select
-                          className="form-select no-drag"
-                          id="editTaskStatus"
-                          value={editStatusId}
-                          onChange={(e) => setEditStatusId(Number(e.target.value))}
-                          required
-                        >
-                          {statuses.map((status) => (
-                            <option key={status.Id} value={status.Id}>
-                              {status.Label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="editTaskParent" className="form-label">Parent Task</label>
-                        <select
-                          className="form-select no-drag"
-                          id="editTaskParent"
-                          value={editParentId}
-                          onChange={(e) => setEditParentId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">No Parent</option>
-                          {projectTasks
-                            .filter(t => t.Id !== task.Id && !descendantIds.has(t.Id)) // Exclude current task and all its descendants
-                            .map((t) => (
-                              <option key={t.Id} value={t.Id}>
-                                {project?.Prefix}-{t.DisplayId}: {t.Title}
-                              </option>
-                            ))
-                          }
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="editRemoteTaskId" className="form-label">Remote Task ID</label>
-                        <input
-                          type="number"
-                          className="form-control no-drag"
-                          id="editRemoteTaskId"
-                          placeholder="External ID"
-                          value={editRemoteId}
-                          onChange={(e) => setEditRemoteId(e.target.value === '' ? '' : Number(e.target.value))}
-                          disabled={!project?.TaskSourceId}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowEditTaskModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary no-drag" disabled={isUpdatingTask}>
-                      {isUpdatingTask ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Updating...
-                        </>
-                      ) : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+      <TaskModal
+        show={showEditTaskModal && !!task}
+        onClose={() => setShowEditTaskModal(false)}
+        onSave={handleUpdateTask}
+        initialData={task}
+        project={project!}
+        people={people}
+        statuses={statuses}
+        projectTasks={projectTasks}
+      />
     </div>
   );
 };

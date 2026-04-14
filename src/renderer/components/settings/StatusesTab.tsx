@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Status } from '../../types';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const StatusesTab: React.FC = () => {
   const [statuses, setStatuses] = useState<Status[]>([]);
@@ -130,9 +131,7 @@ const StatusesTab: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="text-center p-4">
-          <div className="spinner-border text-primary" role="status"></div>
-        </div>
+        <LoadingSpinner />
       ) : (
         <div className="table-responsive">
           <table className="table table-hover align-middle">

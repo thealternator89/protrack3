@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Project, Person, TaskSource } from '../types';
+import Modal from './shared/Modal';
+import LoadingSpinner, { ButtonSpinner } from './shared/LoadingSpinner';
+import ProjectModal, { ProjectFormData } from './shared/ProjectModal';
 
 const ProjectList: React.FC = () => {
   const navigate = useNavigate();
@@ -9,15 +12,8 @@ const ProjectList: React.FC = () => {
   const [taskSources, setTaskSources] = useState<TaskSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modal & Form State
+  // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newPrefix, setNewPrefix] = useState('');
-  const [newStartDate, setNewStartDate] = useState('');
-  const [newDueDate, setNewDueDate] = useState('');
-  const [newOwnerId, setNewOwnerId] = useState<number | ''>('');
-  const [newTaskSourceId, setNewTaskSourceId] = useState<number | ''>('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -41,38 +37,18 @@ const ProjectList: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newPrefix.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      await window.projects.create({
-        title: newTitle,
-        prefix: newPrefix.toUpperCase(),
-        startDate: newStartDate || undefined,
-        dueDate: newDueDate || undefined,
-        ownerId: newOwnerId === '' ? undefined : newOwnerId,
-        taskSourceId: newTaskSourceId === '' ? undefined : newTaskSourceId,
-      });
-      
-      // Reset form and close modal
-      setNewTitle('');
-      setNewPrefix('');
-      setNewStartDate('');
-      setNewDueDate('');
-      setNewOwnerId('');
-      setNewTaskSourceId('');
-      setShowModal(false);
-      
-      // Refresh list
-      await fetchData();
-    } catch (error) {
-      console.error('Failed to create project:', error);
-      alert('Error creating project. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCreateProject = async (data: ProjectFormData) => {
+    await window.projects.create({
+      title: data.title,
+      prefix: data.prefix,
+      startDate: data.startDate,
+      dueDate: data.dueDate,
+      ownerId: data.ownerId,
+      taskSourceId: data.taskSourceId,
+    });
+    
+    // Refresh list
+    await fetchData();
   };
 
   return (
@@ -100,11 +76,7 @@ const ProjectList: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="text-center mt-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
+          <LoadingSpinner className="mt-5" />
         ) : projects.length === 0 ? (
           <div className="card shadow-sm mt-4">
             <div className="card-body text-center p-5">
@@ -167,120 +139,13 @@ const ProjectList: React.FC = () => {
         )}
       </div>
 
-      {/* New Project Modal */}
-      {showModal && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">Create New Project</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowModal(false)}></button>
-                </div>
-                <form onSubmit={handleCreateProject}>
-                  <div className="modal-body">
-                    <div className="row g-3">
-                      <div className="col-md-9 mb-3">
-                        <label htmlFor="projectTitle" className="form-label">Project Title</label>
-                        <input
-                          type="text"
-                          className="form-control no-drag"
-                          id="projectTitle"
-                          placeholder="Enter project name"
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          required
-                          autoFocus
-                        />
-                      </div>
-                      <div className="col-md-3 mb-3">
-                        <label htmlFor="projectPrefix" className="form-label">Prefix</label>
-                        <input
-                          type="text"
-                          className="form-control no-drag text-uppercase"
-                          id="projectPrefix"
-                          placeholder="ABC"
-                          value={newPrefix}
-                          onChange={(e) => setNewPrefix(e.target.value.substring(0, 5))}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="row g-3">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="projectOwner" className="form-label">Project Owner</label>
-                        <select
-                          className="form-select no-drag"
-                          id="projectOwner"
-                          value={newOwnerId}
-                          onChange={(e) => setNewOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">No owner assigned</option>
-                          {people.map((person) => (
-                            <option key={person.Id} value={person.Id}>
-                              {person.Name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="taskSource" className="form-label">Task Source</label>
-                        <select
-                          className="form-select no-drag"
-                          id="taskSource"
-                          value={newTaskSourceId}
-                          onChange={(e) => setNewTaskSourceId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">No task source</option>
-                          {taskSources.map((source) => (
-                            <option key={source.Id} value={source.Id}>
-                              {source.Name} ({source.Type})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="startDate" className="form-label">Start Date</label>
-                        <input
-                          type="date"
-                          className="form-control no-drag"
-                          id="startDate"
-                          value={newStartDate}
-                          onChange={(e) => setNewStartDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="dueDate" className="form-label">Due Date</label>
-                        <input
-                          type="date"
-                          className="form-control no-drag"
-                          id="dueDate"
-                          value={newDueDate}
-                          onChange={(e) => setNewDueDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary no-drag" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Creating...
-                        </>
-                      ) : 'Create Project'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+      <ProjectModal
+        show={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={handleCreateProject}
+        people={people}
+        taskSources={taskSources}
+      />
     </div>
   );
 };

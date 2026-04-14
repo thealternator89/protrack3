@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Project, Person, Task, TaskPrerequisite, Status, TaskSource } from '../types';
+import Modal from './shared/Modal';
+import LoadingSpinner, { ButtonSpinner } from './shared/LoadingSpinner';
+import ProjectModal, { ProjectFormData } from './shared/ProjectModal';
+import TaskModal, { TaskFormData } from './shared/TaskModal';
 
 const ProjectView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,25 +17,12 @@ const ProjectView: React.FC = () => {
   const [taskSources, setTaskSources] = useState<TaskSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Edit Modal & Form State
+  // Edit Modal State
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editPrefix, setEditPrefix] = useState('');
-  const [editStartDate, setEditStartDate] = useState('');
-  const [editDueDate, setEditDueDate] = useState('');
-  const [editOwnerId, setEditOwnerId] = useState<number | ''>('');
-  const [editTaskSourceId, setEditTaskSourceId] = useState<number | ''>('');
-  const [isUpdating, setIsUpdating] = useState(false);
 
   // Add Task Modal State
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDescription, setNewTaskDescription] = useState('');
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState<number | ''>('');
-  const [newTaskStatusId, setNewTaskStatusId] = useState<number | ''>('');
   const [newTaskParentId, setNewTaskParentId] = useState<number | ''>('');
-  const [newTaskRemoteId, setNewTaskRemoteId] = useState<number | ''>('');
-  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   // Import Task Modal State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -55,100 +46,52 @@ const ProjectView: React.FC = () => {
       setPrerequisites(taskData.prerequisites);
       setStatuses(statusData);
       setTaskSources(taskSourcesData);
-      
-      if (statusData.length > 0 && newTaskStatusId === '') {
-        const newStatus = statusData.find(s => s.IsNew === 1) || statusData[0];
-        setNewTaskStatusId(newStatus.Id);
-      }
-
-      if (projectData) {
-        setEditTitle(projectData.Title);
-        setEditPrefix(projectData.Prefix);
-        setEditStartDate(projectData.StartDate || '');
-        setEditDueDate(projectData.DueDate || '');
-        setEditOwnerId(projectData.OwnerId || '');
-        setEditTaskSourceId(projectData.TaskSourceId || '');
-      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [id, newTaskStatusId]);
+  }, [id]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const handleUpdateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!project || !editTitle.trim() || !editPrefix.trim()) return;
-
-    setIsUpdating(true);
-    try {
-      await window.projects.update({
-        id: project.Id,
-        title: editTitle,
-        prefix: editPrefix.toUpperCase(),
-        startDate: editStartDate || undefined,
-        dueDate: editDueDate || undefined,
-        ownerId: editOwnerId === '' ? undefined : editOwnerId,
-        taskSourceId: editTaskSourceId === '' ? undefined : editTaskSourceId,
-      });
-      
-      setShowEditModal(false);
-      await fetchData();
-    } catch (error) {
-      console.error('Failed to update project:', error);
-      alert('Error updating project. Please try again.');
-    } finally {
-      setIsUpdating(false);
-    }
+  const handleUpdateProject = async (data: ProjectFormData) => {
+    if (!project) return;
+    await window.projects.update({
+      id: project.Id,
+      title: data.title,
+      prefix: data.prefix,
+      startDate: data.startDate,
+      dueDate: data.dueDate,
+      ownerId: data.ownerId,
+      taskSourceId: data.taskSourceId,
+    });
+    await fetchData();
   };
 
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !newTaskTitle.trim()) return;
+  const handleAddTask = async (data: TaskFormData) => {
+    if (!id) return;
+    const nextDisplayId = tasks.length > 0 ? Math.max(...tasks.map(t => t.DisplayId)) + 1 : 1;
+    
+    const siblingTasks = tasks.filter(t => 
+      data.parentId === undefined ? (t.ParentId === null || t.ParentId === undefined) : t.ParentId === data.parentId
+    );
+    const nextSortOrder = siblingTasks.length > 0 ? Math.max(...siblingTasks.map(t => t.SortOrder)) + 10 : 10;
 
-    setIsCreatingTask(true);
-    try {
-      // Simple logic for next DisplayId and SortOrder
-      const nextDisplayId = tasks.length > 0 ? Math.max(...tasks.map(t => t.DisplayId)) + 1 : 1;
-      
-      const siblingTasks = tasks.filter(t => 
-        newTaskParentId === '' ? (t.ParentId === null || t.ParentId === undefined) : t.ParentId === newTaskParentId
-      );
-      const nextSortOrder = siblingTasks.length > 0 ? Math.max(...siblingTasks.map(t => t.SortOrder)) + 10 : 10;
-
-      await window.tasks.create({
-        displayId: nextDisplayId,
-        title: newTaskTitle.trim(),
-        projectId: Number(id),
-        sortOrder: nextSortOrder,
-        description: newTaskDescription.trim() || undefined,
-        assigneeId: newTaskAssigneeId === '' ? undefined : newTaskAssigneeId,
-        statusId: newTaskStatusId === '' ? undefined : (newTaskStatusId as number),
-        parentId: newTaskParentId === '' ? undefined : newTaskParentId,
-        remoteTaskId: newTaskRemoteId === '' ? undefined : (newTaskRemoteId as number),
-      });
-      setNewTaskTitle('');
-      setNewTaskDescription('');
-      setNewTaskAssigneeId('');
-      setNewTaskParentId('');
-      setNewTaskRemoteId('');
-      // Reset status to "New" status if available
-      if (statuses.length > 0) {
-        const newStatus = statuses.find(s => s.IsNew === 1) || statuses[0];
-        setNewTaskStatusId(newStatus.Id);
-      }
-      setShowAddTaskModal(false);
-      await fetchData();
-    } catch (error) {
-      console.error('Failed to create task:', error);
-      alert('Error creating task. Please try again.');
-    } finally {
-      setIsCreatingTask(false);
-    }
+    await window.tasks.create({
+      displayId: nextDisplayId,
+      title: data.title,
+      projectId: Number(id),
+      sortOrder: nextSortOrder,
+      description: data.description,
+      assigneeId: data.assigneeId,
+      statusId: data.statusId,
+      parentId: data.parentId,
+      remoteTaskId: data.remoteTaskId,
+    });
+    await fetchData();
   };
 
   const handleImportTasks = async (e: React.FormEvent) => {
@@ -176,10 +119,8 @@ const ProjectView: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="main-content text-center mt-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+      <div className="main-content">
+        <LoadingSpinner className="mt-5" />
       </div>
     );
   }
@@ -454,282 +395,58 @@ const ProjectView: React.FC = () => {
         </div>
       </div>
 
-      {/* Add Task Modal */}
-      {showAddTaskModal && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">
-                    {newTaskParentId ? 'Add Subtask' : 'Add New Task'}
-                  </h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => {
-                    setShowAddTaskModal(false);
-                    setNewTaskParentId('');
-                  }}></button>
-                </div>
-                <form onSubmit={handleAddTask}>
-                  <div className="modal-body">
-                    {newTaskParentId && (
-                      <div className="mb-3">
-                        <label className="form-label text-muted small text-uppercase fw-bold">Parent Task</label>
-                        <div className="p-2 bg-light border rounded">
-                          {tasks.find(t => t.Id === newTaskParentId)?.Title || `Task #${newTaskParentId}`}
-                        </div>
-                      </div>
-                    )}
-                    <div className="mb-3">
-                      <label htmlFor="taskTitle" className="form-label">Task Title</label>
-                      <input
-                        type="text"
-                        className="form-control no-drag"
-                        id="taskTitle"
-                        placeholder="What needs to be done?"
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                        required
-                        autoFocus
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="taskDescription" className="form-label">Description</label>
-                      <textarea
-                        className="form-control no-drag"
-                        id="taskDescription"
-                        rows={3}
-                        placeholder="Add more details..."
-                        value={newTaskDescription}
-                        onChange={(e) => setNewTaskDescription(e.target.value)}
-                      />
-                    </div>
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="taskAssignee" className="form-label">Assignee</label>
-                        <select
-                          className="form-select no-drag"
-                          id="taskAssignee"
-                          value={newTaskAssigneeId}
-                          onChange={(e) => setNewTaskAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">Unassigned</option>
-                          {people.map((person) => (
-                            <option key={person.Id} value={person.Id}>
-                              {person.Name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="taskStatus" className="form-label">Status</label>
-                        <select
-                          className="form-select no-drag"
-                          id="taskStatus"
-                          value={newTaskStatusId}
-                          onChange={(e) => setNewTaskStatusId(Number(e.target.value))}
-                          required
-                        >
-                          {statuses.map((status) => (
-                            <option key={status.Id} value={status.Id}>
-                              {status.Label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="remoteTaskId" className="form-label">Remote Task ID</label>
-                        <input
-                          type="number"
-                          className="form-control no-drag"
-                          id="remoteTaskId"
-                          placeholder="External ID"
-                          value={newTaskRemoteId}
-                          onChange={(e) => setNewTaskRemoteId(e.target.value === '' ? '' : Number(e.target.value))}
-                          disabled={!project.TaskSourceId}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => {
-                      setShowAddTaskModal(false);
-                      setNewTaskParentId('');
-                    }}>Cancel</button>
-                    <button type="submit" className="btn btn-primary no-drag" disabled={isCreatingTask}>
-                      {isCreatingTask ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Creating...
-                        </>
-                      ) : 'Add Task'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+      <TaskModal
+        show={showAddTaskModal}
+        onClose={() => {
+          setShowAddTaskModal(false);
+          setNewTaskParentId('');
+        }}
+        onSave={handleAddTask}
+        initialParentId={newTaskParentId}
+        project={project}
+        people={people}
+        statuses={statuses}
+        projectTasks={tasks}
+      />
 
-      {/* Edit Project Modal */}
-      {showEditModal && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">Edit Project</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowEditModal(false)}></button>
-                </div>
-                <form onSubmit={handleUpdateProject}>
-                  <div className="modal-body">
-                    <div className="row g-3">
-                      <div className="col-md-9 mb-3">
-                        <label htmlFor="projectTitle" className="form-label">Project Title</label>
-                        <input
-                          type="text"
-                          className="form-control no-drag"
-                          id="projectTitle"
-                          placeholder="Enter project name"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-md-3 mb-3">
-                        <label htmlFor="projectPrefix" className="form-label">Prefix</label>
-                        <input
-                          type="text"
-                          className="form-control no-drag text-uppercase"
-                          id="projectPrefix"
-                          placeholder="ABC"
-                          value={editPrefix}
-                          onChange={(e) => setEditPrefix(e.target.value.substring(0, 5))}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="row g-3">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="editOwner" className="form-label">Project Owner</label>
-                        <select
-                          className="form-select no-drag"
-                          id="editOwner"
-                          value={editOwnerId}
-                          onChange={(e) => setEditOwnerId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">No owner assigned</option>
-                          {people.map((person) => (
-                            <option key={person.Id} value={person.Id}>
-                              {person.Name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="editTaskSource" className="form-label">Task Source</label>
-                        <select
-                          className="form-select no-drag"
-                          id="editTaskSource"
-                          value={editTaskSourceId}
-                          onChange={(e) => setEditTaskSourceId(e.target.value === '' ? '' : Number(e.target.value))}
-                        >
-                          <option value="">No task source</option>
-                          {taskSources.map((source) => (
-                            <option key={source.Id} value={source.Id}>
-                              {source.Name} ({source.Type})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="startDate" className="form-label">Start Date</label>
-                        <input
-                          type="date"
-                          className="form-control no-drag"
-                          id="startDate"
-                          value={editStartDate}
-                          onChange={(e) => setEditStartDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="dueDate" className="form-label">Due Date</label>
-                        <input
-                          type="date"
-                          className="form-control no-drag"
-                          id="dueDate"
-                          value={editDueDate}
-                          onChange={(e) => setEditDueDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowEditModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary no-drag" disabled={isUpdating}>
-                      {isUpdating ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Updating...
-                        </>
-                      ) : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+      <ProjectModal
+        show={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleUpdateProject}
+        initialData={project}
+        people={people}
+        taskSources={taskSources}
+      />
 
-      {/* Import Tasks Modal */}
-      {showImportModal && (
-        <>
-          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content shadow">
-                <div className="modal-header">
-                  <h5 className="modal-title">Import Tasks from Source</h5>
-                  <button type="button" className="btn-close no-drag" onClick={() => setShowImportModal(false)}></button>
-                </div>
-                <form onSubmit={handleImportTasks}>
-                  <div className="modal-body">
-                    <div className="mb-3">
-                      <label htmlFor="importTaskIds" className="form-label">Comma-separated Azure DevOps Work Item IDs</label>
-                      <textarea
-                        className="form-control no-drag"
-                        id="importTaskIds"
-                        rows={5}
-                        placeholder="e.g., 123, 456, 789"
-                        value={importTaskIds}
-                        onChange={(e) => setImportTaskIds(e.target.value)}
-                        required
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowImportModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary no-drag" disabled={isImporting}>
-                      {isImporting ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Importing...
-                        </>
-                      ) : 'Import Tasks'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="modal-backdrop fade show"></div>
-        </>
-      )}
+      <Modal
+        show={showImportModal}
+        title="Import Tasks from Source"
+        onClose={() => setShowImportModal(false)}
+        onSubmit={handleImportTasks}
+        isSubmitting={isImporting}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowImportModal(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary no-drag" disabled={isImporting}>
+              {isImporting ? <ButtonSpinner label="Importing..." /> : 'Import Tasks'}
+            </button>
+          </>
+        }
+      >
+        <div className="mb-3">
+          <label htmlFor="importTaskIds" className="form-label">Comma-separated Azure DevOps Work Item IDs</label>
+          <textarea
+            className="form-control no-drag"
+            id="importTaskIds"
+            rows={5}
+            placeholder="e.g., 123, 456, 789"
+            value={importTaskIds}
+            onChange={(e) => setImportTaskIds(e.target.value)}
+            required
+            autoFocus
+          />
+        </div>
+      </Modal>
     </div>
   );
 };
