@@ -19,5 +19,6 @@ export const mainConfig: Configuration = {
   },
   externals: {
     sqlite3: 'commonjs sqlite3',
+    'azure-devops-node-api': 'commonjs azure-devops-node-api',
   },
 };

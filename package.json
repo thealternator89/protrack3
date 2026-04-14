@@ -47,6 +47,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@popperjs/core": "^2.11.8",
+    "azure-devops-node-api": "^15.1.2",
     "bootstrap": "^5.3.8",
     "electron-squirrel-startup": "^1.0.1",
     "prettier": "^3.8.2",

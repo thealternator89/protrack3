@@ -25,7 +25,11 @@ const TaskView: React.FC = () => {
     try {
       const config = JSON.parse(source.Config);
       if (source.Type === 'Azure DevOps') {
-        return `https://dev.azure.com/${config.org}/${config.project}/_workitems/edit/${task.RemoteTaskId}`;
+        const organizationName = config.organizationName || '';
+        const projectName = config.project || '';
+        if (organizationName && projectName) {
+          return `https://dev.azure.com/${organizationName}/${projectName}/_workitems/edit/${task.RemoteTaskId}`;
+        }
       }
     } catch {
       console.error('Failed to parse task source config');

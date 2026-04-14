@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { TaskSource } from '../../types';
+import { TaskSource, Status } from '../../types';
+
+interface StatusMapFormEntry {
+  localStatusId: number | '';
+  sourceName: string;
+}
 
 const TaskSourcesTab: React.FC = () => {
   const [sources, setSources] = useState<TaskSource[]>([]);
+  const [allStatuses, setAllStatuses] = useState<Status[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Form state
@@ -11,60 +17,95 @@ const TaskSourcesTab: React.FC = () => {
   const [type, setType] = useState('Azure DevOps');
   
   // Azure DevOps specific config
-  const [org, setOrg] = useState('');
-  const [project, setProject] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [project, setProject] = useState(''); // Re-introducing this
   const [pat, setPat] = useState('');
 
-  const fetchSources = async () => {
+  // Status mapping state
+  const [currentStatusMaps, setCurrentStatusMaps] = useState<StatusMapFormEntry[]>([]);
+
+  const fetchSourcesAndStatuses = async () => {
     setIsLoading(true);
     try {
-      const data = await window.taskSources.getAll();
-      setSources(data);
+      const [sourcesData, statusesData] = await Promise.all([
+        window.taskSources.getAll(),
+        window.statuses.getAll(),
+      ]);
+      setSources(sourcesData);
+      setAllStatuses(statusesData);
     } catch (error) {
-      console.error('Failed to fetch task sources:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSources();
+    fetchSourcesAndStatuses();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const configObj = { org, project, pat };
+      const organizationUrl = `https://dev.azure.com/${organizationName}`;
+      const configObj = { organizationName, organizationUrl, project, pat };
       const configStr = JSON.stringify(configObj);
+      let taskSourceId: number;
 
       if (isEditing) {
         await window.taskSources.update({ id: isEditing, name, type, config: configStr });
+        taskSourceId = isEditing;
       } else {
-        await window.taskSources.create({ name, type, config: configStr });
+        const result = await window.taskSources.create({ name, type, config: configStr });
+        taskSourceId = result.lastID; // Assuming create returns { lastID: number }
       }
+
+      // Save status maps if we have a taskSourceId
+      if (taskSourceId) {
+        // Filter out incomplete mappings before saving
+        const validMaps = currentStatusMaps.filter(map => map.localStatusId !== '' && map.sourceName.trim() !== '');
+        const formattedMaps = validMaps.map(map => ({
+          statusId: map.localStatusId as number,
+          sourceName: map.sourceName.trim(),
+        }));
+        await window.statusMaps.update(taskSourceId, formattedMaps);
+      }
+
       resetForm();
-      await fetchSources();
+      await fetchSourcesAndStatuses();
     } catch (error) {
       console.error('Error saving task source:', error);
       alert('Failed to save task source.');
     }
   };
 
-  const handleEdit = (source: TaskSource) => {
+  const handleEdit = async (source: TaskSource) => {
     setIsEditing(source.Id);
     setName(source.Name);
     setType(source.Type);
     
     try {
       const config = JSON.parse(source.Config);
-      setOrg(config.org || '');
+      setOrganizationName(config.organizationName || '');
       setProject(config.project || '');
       setPat(config.pat || '');
     } catch (e) {
       console.error('Failed to parse config:', e);
-      setOrg('');
-      setProject('');
+      setOrganizationName('');
+      setProject(''); // Clear project on parse error
       setPat('');
+    }
+
+    // Fetch and set status maps for editing
+    try {
+      const maps = await window.statusMaps.getByTaskSourceId(source.Id);
+      setCurrentStatusMaps(maps.map(map => ({
+        localStatusId: map.StatusId,
+        sourceName: map.SourceName,
+      })));
+    } catch (e) {
+      console.error('Failed to fetch status maps:', e);
+      setCurrentStatusMaps([]);
     }
   };
 
@@ -72,7 +113,7 @@ const TaskSourcesTab: React.FC = () => {
     if (!confirm('Are you sure you want to delete this task source?')) return;
     try {
       await window.taskSources.delete(id);
-      await fetchSources();
+      await fetchSourcesAndStatuses();
     } catch (error) {
       console.error('Error deleting task source:', error);
       alert('Failed to delete task source. It may be in use by projects.');
@@ -83,9 +124,29 @@ const TaskSourcesTab: React.FC = () => {
     setIsEditing(null);
     setName('');
     setType('Azure DevOps');
-    setOrg('');
+    setOrganizationName('');
     setProject('');
     setPat('');
+    setCurrentStatusMaps([]); // Clear status maps on form reset
+  };
+
+  const handleAddStatusMap = () => {
+    setCurrentStatusMaps([...currentStatusMaps, { localStatusId: '', sourceName: '' }]);
+  };
+
+  const handleUpdateStatusMap = (index: number, field: keyof StatusMapFormEntry, value: string | number) => {
+    const updatedMaps = [...currentStatusMaps];
+    if (field === 'localStatusId') {
+      updatedMaps[index].localStatusId = value as number;
+    } else {
+      updatedMaps[index].sourceName = value as string;
+    }
+    setCurrentStatusMaps(updatedMaps);
+  };
+
+  const handleDeleteStatusMap = (index: number) => {
+    const updatedMaps = currentStatusMaps.filter((_, i) => i !== index);
+    setCurrentStatusMaps(updatedMaps);
   };
 
   return (
@@ -122,13 +183,13 @@ const TaskSourcesTab: React.FC = () => {
             {type === 'Azure DevOps' && (
               <>
                 <div className="col-md-4">
-                  <label className="form-label fw-bold">Organization</label>
+                  <label className="form-label fw-bold">Organization Name</label>
                   <input 
                     type="text" 
                     className="form-control no-drag" 
                     placeholder="e.g. microsoft"
-                    value={org} 
-                    onChange={(e) => setOrg(e.target.value)} 
+                    value={organizationName} 
+                    onChange={(e) => setOrganizationName(e.target.value)} 
                     required 
                   />
                 </div>
@@ -137,7 +198,7 @@ const TaskSourcesTab: React.FC = () => {
                   <input 
                     type="text" 
                     className="form-control no-drag" 
-                    placeholder="e.g. VSCode"
+                    placeholder="e.g. MyProject"
                     value={project} 
                     onChange={(e) => setProject(e.target.value)} 
                     required 
@@ -154,6 +215,58 @@ const TaskSourcesTab: React.FC = () => {
                   />
                 </div>
               </>
+            )}
+
+            {isEditing && (
+              <div className="col-12 mt-4">
+                <div className="card">
+                  <div className="card-header">
+                    <h6 className="mb-0">Status Mappings</h6>
+                  </div>
+                  <div className="card-body">
+                    {currentStatusMaps.length === 0 && <p className="text-muted">No status mappings configured.</p>}
+                    {currentStatusMaps.map((map, index) => (
+                      <div key={index} className="row g-2 mb-2 align-items-center">
+                        <div className="col-5">
+                          <select
+                            className="form-select no-drag"
+                            value={map.localStatusId}
+                            onChange={(e) => handleUpdateStatusMap(index, 'localStatusId', Number(e.target.value))}
+                            required
+                          >
+                            <option value="">Select Local Status</option>
+                            {allStatuses.map(status => (
+                              <option key={status.Id} value={status.Id}>{status.Label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-5">
+                          <input
+                            type="text"
+                            className="form-control no-drag"
+                            placeholder="Source Status Name"
+                            value={map.sourceName}
+                            onChange={(e) => handleUpdateStatusMap(index, 'sourceName', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="col-2">
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm no-drag"
+                            onClick={() => handleDeleteStatusMap(index)}
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" className="btn btn-secondary btn-sm mt-3 no-drag" onClick={handleAddStatusMap}>
+                      <i className="fas fa-plus me-2"></i>Add Mapping
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="col-12 d-flex gap-2">
@@ -192,7 +305,9 @@ const TaskSourcesTab: React.FC = () => {
                 try {
                   const config = JSON.parse(source.Config);
                   if (source.Type === 'Azure DevOps') {
-                    summary = `${config.org} / ${config.project}`;
+                    const orgName = config.organizationName || '';
+                    const projectName = config.project || '';
+                    summary = `${orgName}${projectName ? ' / ' + projectName : ''}`;
                   }
                 } catch {
                   summary = 'Invalid Config';

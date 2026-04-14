@@ -121,6 +121,7 @@ export interface TasksAPI {
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
   findByDisplayId: (input: string, currentProjectId: number) => Promise<{ Id: number } | null>;
   updateSortOrders: (updates: { id: number; sortOrder: number }[]) => Promise<any>;
+  importFromSource: (projectId: number, taskSourceId: number, workItemIds: string) => Promise<void>;
 }
 
 export interface TaskSourcesAPI {
@@ -128,6 +129,11 @@ export interface TaskSourcesAPI {
   create: (source: { name: string; type: string; config: string }) => Promise<any>;
   update: (source: { id: number; name: string; type: string; config: string }) => Promise<any>;
   delete: (id: number) => Promise<any>;
+}
+
+export interface StatusMapsAPI {
+  getByTaskSourceId: (taskSourceId: number) => Promise<StatusMap[]>;
+  update: (taskSourceId: number, maps: { statusId: number; sourceName: string }[]) => Promise<any>;
 }
 
 export interface ElectronAPI {
@@ -142,6 +148,7 @@ declare global {
     statuses: StatusesAPI;
     tasks: TasksAPI;
     taskSources: TaskSourcesAPI;
+    statusMaps: StatusMapsAPI;
     electronAPI: ElectronAPI;
   }
 }

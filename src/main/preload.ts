@@ -62,6 +62,8 @@ contextBridge.exposeInMainWorld('tasks', {
     ipcRenderer.invoke('find-task-by-display-id', { input, currentProjectId }),
   updateSortOrders: (updates: { id: number; sortOrder: number }[]) => 
     ipcRenderer.invoke('update-task-orders', updates),
+  importFromSource: (projectId: number, taskSourceId: number, workItemIds: string) =>
+    ipcRenderer.invoke('import-tasks-from-source', projectId, taskSourceId, workItemIds),
 });
 
 contextBridge.exposeInMainWorld('taskSources', {
@@ -71,6 +73,12 @@ contextBridge.exposeInMainWorld('taskSources', {
   update: (source: { id: number; name: string; type: string; config: string }) => 
     ipcRenderer.invoke('update-task-source', source),
   delete: (id: number) => ipcRenderer.invoke('delete-task-source', id),
+});
+
+contextBridge.exposeInMainWorld('statusMaps', {
+  getByTaskSourceId: (taskSourceId: number) => ipcRenderer.invoke('get-status-maps', taskSourceId),
+  update: (taskSourceId: number, maps: { statusId: number; sourceName: string }[]) =>
+    ipcRenderer.invoke('update-status-maps', taskSourceId, maps),
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {

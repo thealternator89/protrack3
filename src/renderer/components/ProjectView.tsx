@@ -33,6 +33,11 @@ const ProjectView: React.FC = () => {
   const [newTaskRemoteId, setNewTaskRemoteId] = useState<number | ''>('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
+  // Import Task Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importTaskIds, setImportTaskIds] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+
   const fetchData = useCallback(async () => {
     if (!id) return;
     setIsLoading(true);
@@ -145,6 +150,29 @@ const ProjectView: React.FC = () => {
       setIsCreatingTask(false);
     }
   };
+
+  const handleImportTasks = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!project || !project.TaskSourceId || !importTaskIds.trim()) return;
+  
+    setIsImporting(true);
+    try {
+      await window.tasks.importFromSource(project.Id, project.TaskSourceId, importTaskIds.trim());
+      setImportTaskIds('');
+      setShowImportModal(false);
+      await fetchData(); // Refresh tasks after import
+      alert('Tasks imported successfully!');
+    } catch (error) {
+      console.error('Failed to import tasks:', error);
+      alert(`Error importing tasks: ${error.message || 'An unknown error occurred.'}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+
+
+
 
   if (isLoading) {
     return (
@@ -403,12 +431,22 @@ const ProjectView: React.FC = () => {
             
             <div className="d-flex justify-content-between align-items-center mb-4 pt-3 border-top">
               <h4 className="mb-0">Tasks</h4>
-              <button 
-                className="btn btn-primary no-drag"
-                onClick={() => openAddTaskModal()}
-              >
-                <i className="fas fa-plus me-1"></i> Add Task
-              </button>
+              <div className="d-flex gap-2">
+                {project.TaskSourceId && (
+                  <button
+                    className="btn btn-outline-primary no-drag"
+                    onClick={() => setShowImportModal(true)}
+                  >
+                    <i className="fas fa-file-import me-1"></i> Import Tasks
+                  </button>
+                )}
+                <button 
+                  className="btn btn-primary no-drag"
+                  onClick={() => openAddTaskModal()}
+                >
+                  <i className="fas fa-plus me-1"></i> Add Task
+                </button>
+              </div>
             </div>
 
             <TaskTable tasks={tasks} />
@@ -647,8 +685,55 @@ const ProjectView: React.FC = () => {
           <div className="modal-backdrop fade show"></div>
         </>
       )}
+
+      {/* Import Tasks Modal */}
+      {showImportModal && (
+        <>
+          <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content shadow">
+                <div className="modal-header">
+                  <h5 className="modal-title">Import Tasks from Source</h5>
+                  <button type="button" className="btn-close no-drag" onClick={() => setShowImportModal(false)}></button>
+                </div>
+                <form onSubmit={handleImportTasks}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label htmlFor="importTaskIds" className="form-label">Comma-separated Azure DevOps Work Item IDs</label>
+                      <textarea
+                        className="form-control no-drag"
+                        id="importTaskIds"
+                        rows={5}
+                        placeholder="e.g., 123, 456, 789"
+                        value={importTaskIds}
+                        onChange={(e) => setImportTaskIds(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button type="button" className="btn btn-secondary no-drag" onClick={() => setShowImportModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary no-drag" disabled={isImporting}>
+                      {isImporting ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Importing...
+                        </>
+                      ) : 'Import Tasks'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show"></div>
+        </>
+      )}
     </div>
   );
 };
 
 export default ProjectView;
+
+
