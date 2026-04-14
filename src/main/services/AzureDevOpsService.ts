@@ -53,7 +53,7 @@ export class AzureDevOpsService {
           if (!wi.id || !wi.fields) continue;
 
           const title = wi.fields['System.Title'];
-          const description = wi.fields['System.Description'];
+          const description = wi.fields['System.Description'] || null;
           const azDevStatus = wi.fields['System.State'];
           const assignedTo = wi.fields['System.AssignedTo'];
           const remoteTaskId = wi.id;

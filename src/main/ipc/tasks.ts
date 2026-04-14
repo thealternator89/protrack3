@@ -1,10 +1,15 @@
 import { ipcMain } from 'electron';
 import { taskRepository } from '../repositories/TaskRepository';
 import { azureDevOpsService } from '../services/AzureDevOpsService';
+import { descriptionService } from '../services/DescriptionService';
 
 export function registerTaskHandlers() {
   ipcMain.handle('get-task', async (event, id) => {
-    return await taskRepository.get(id);
+    const result = await taskRepository.get(id);
+    if (result && result.task && result.task.Description) {
+      result.task.Description = await descriptionService.processDescription(result.task.Description);
+    }
+    return result;
   });
 
   ipcMain.handle('get-project-tasks', async (event, projectId) => {
