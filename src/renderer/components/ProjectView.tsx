@@ -249,7 +249,6 @@ const ProjectView: React.FC = () => {
               </thead>
               <tbody>
                 {flattenedTasks.map(task => {
-                  const notReady = !isReadyToStart(task) && !!statuses.find(s => s.Id === task.StatusId && s.IsNew === 1);
                   const dependentTasks = prerequisites.filter(p => p.PrerequisiteTaskId === task.Id);
                   const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
                   const isDragged = draggedTaskId === task.Id;

@@ -10,7 +10,7 @@ const PeopleTab: React.FC = () => {
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [color, setColor] = useState('primary');
+  const [color, setColor] = useState<Person['Color']>('primary');
 
   const BOOTSTRAP_COLORS = [
     { label: 'Primary (Blue)', value: 'primary' },
@@ -112,8 +112,8 @@ const PeopleTab: React.FC = () => {
               <label className="form-label">Color</label>
               <select 
                 className="form-select no-drag" 
-                value={color} 
-                onChange={(e) => setColor(e.target.value)}
+                value={color || 'primary'} 
+                onChange={(e) => setColor(e.target.value as Person['Color'])}
               >
                 {BOOTSTRAP_COLORS.map(c => (
                   <option key={c.value} value={c.value}>{c.label}</option>
