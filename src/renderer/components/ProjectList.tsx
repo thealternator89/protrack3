@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Project, Person, TaskSource } from '../types';
-import Modal from './shared/Modal';
-import LoadingSpinner, { ButtonSpinner } from './shared/LoadingSpinner';
+import LoadingSpinner from './shared/LoadingSpinner';
 import ProjectModal, { ProjectFormData } from './shared/ProjectModal';
+import logo from '@assets/logo-full.png';
 
 const ProjectList: React.FC = () => {
   const navigate = useNavigate();
@@ -55,10 +55,9 @@ const ProjectList: React.FC = () => {
     <div className="main-content">
       <div className="container mt-4">
         <div className="d-flex justify-content-between align-items-center mb-4">
-          <h2 className="mb-0">
-            <i className="fas fa-folder-open text-primary me-2"></i>
-            Projects
-          </h2>
+          <div>
+            <img src={logo} alt="ProTrack 3" style={{ height: '100px' }} />
+          </div>
           <div className="d-flex">
             <button 
               className="btn btn-outline-secondary no-drag me-2"
