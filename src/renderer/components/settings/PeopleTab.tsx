@@ -10,7 +10,18 @@ const PeopleTab: React.FC = () => {
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [color, setColor] = useState('#0d6efd');
+  const [color, setColor] = useState('primary');
+
+  const BOOTSTRAP_COLORS = [
+    { label: 'Primary (Blue)', value: 'primary' },
+    { label: 'Secondary (Gray)', value: 'secondary' },
+    { label: 'Success (Green)', value: 'success' },
+    { label: 'Danger (Red)', value: 'danger' },
+    { label: 'Warning (Yellow)', value: 'warning' },
+    { label: 'Info (Light Blue)', value: 'info' },
+    { label: 'Light', value: 'light' },
+    { label: 'Dark', value: 'dark' },
+  ];
 
   const fetchPeople = async () => {
     setIsLoading(true);
@@ -48,7 +59,7 @@ const PeopleTab: React.FC = () => {
     setIsEditing(person.Id);
     setName(person.Name);
     setEmail(person.Email);
-    setColor(person.Color || '#0d6efd');
+    setColor(person.Color || 'primary');
   };
 
   const handleDelete = async (id: number) => {
@@ -66,7 +77,7 @@ const PeopleTab: React.FC = () => {
     setIsEditing(null);
     setName('');
     setEmail('');
-    setColor('#0d6efd');
+    setColor('primary');
   };
 
   return (
@@ -99,12 +110,15 @@ const PeopleTab: React.FC = () => {
             </div>
             <div className="col-md-2">
               <label className="form-label">Color</label>
-              <input 
-                type="color" 
-                className="form-control form-control-color no-drag w-100" 
+              <select 
+                className="form-select no-drag" 
                 value={color} 
-                onChange={(e) => setColor(e.target.value)} 
-              />
+                onChange={(e) => setColor(e.target.value)}
+              >
+                {BOOTSTRAP_COLORS.map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
             </div>
             <div className="col-md-2 d-flex gap-2">
               <button type="submit" className="btn btn-primary flex-grow-1 no-drag">
@@ -138,12 +152,12 @@ const PeopleTab: React.FC = () => {
                 <tr key={person.Id}>
                   <td>
                     <div 
-                      className="rounded-circle shadow-sm" 
+                      className={`rounded-circle shadow-sm bg-${person.Color || 'secondary'}`} 
                       style={{ 
                         width: '24px', 
-                        height: '24px', 
-                        backgroundColor: person.Color || '#ccc' 
+                        height: '24px'
                       }}
+                      title={person.Color || 'secondary'}
                     ></div>
                   </td>
                   <td className="fw-bold">{person.Name}</td>

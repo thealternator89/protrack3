@@ -12,7 +12,7 @@ export interface Person {
   Id: number;
   Name: string;
   Email: string;
-  Color: string | null;
+  Color: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark' | null;
 }
 
 export interface Status {

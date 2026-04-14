@@ -15,9 +15,9 @@ contextBridge.exposeInMainWorld('projects', {
 
 contextBridge.exposeInMainWorld('people', {
   getAll: () => ipcRenderer.invoke('get-people'),
-  create: (person: { name: string; email: string; color?: string }) => 
+  create: (person: { name: string; email: string; color?: any }) =>
     ipcRenderer.invoke('create-person', person),
-  update: (person: { id: number; name: string; email: string; color?: string }) => 
+  update: (person: { id: number; name: string; email: string; color?: any }) =>
     ipcRenderer.invoke('update-person', person),
   delete: (id: number) => ipcRenderer.invoke('delete-person', id),
 });

@@ -14,8 +14,8 @@ export interface ProjectsAPI {
 
 export interface PeopleAPI {
   getAll: () => Promise<Person[]>;
-  create: (person: { name: string; email: string; color?: string }) => Promise<any>;
-  update: (person: { id: number; name: string; email: string; color?: string }) => Promise<any>;
+  create: (person: { name: string; email: string; color?: Person['Color'] }) => Promise<any>;
+  update: (person: { id: number; name: string; email: string; color?: Person['Color'] }) => Promise<any>;
   delete: (id: number) => Promise<any>;
 }
 

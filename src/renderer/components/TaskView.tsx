@@ -265,11 +265,16 @@ const TaskView: React.FC = () => {
                 <div className="col-md-6">
                   <label className="text-muted small text-uppercase fw-bold mb-1">Assignee</label>
                   <div>
-                    {task.AssigneeName ? (
-                      <span className="badge bg-info text-dark fs-6 fw-normal">
-                        {task.AssigneeName}
-                      </span>
-                    ) : (
+                    {task.AssigneeId ? (() => {
+                      const person = people.find(p => p.Id === task.AssigneeId);
+                      const color = person?.Color || 'info';
+                      const textColor = ['warning', 'light', 'info'].includes(color) ? 'text-dark' : 'text-white';
+                      return (
+                        <span className={`badge bg-${color} ${textColor} fs-6 fw-normal`}>
+                          {task.AssigneeName}
+                        </span>
+                      );
+                    })() : (
                       <span className="text-muted italic">Unassigned</span>
                     )}
                   </div>

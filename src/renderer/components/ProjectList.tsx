@@ -99,9 +99,17 @@ const ProjectList: React.FC = () => {
                       <span className="badge bg-light text-dark border">{project.Prefix}</span>
                     </div>
                     <div className="text-muted small mb-3">
-                      <div className="mb-1 text-truncate" title={people.find(p => p.Id === project.OwnerId)?.Name || 'No owner assigned'}>
-                        <i className="fas fa-user me-2 w-16 text-center text-info"></i>
-                        {people.find(p => p.Id === project.OwnerId)?.Name || 'No owner'}
+                      <div className="mb-1 text-truncate">
+                        {(() => {
+                          const person = project.OwnerId ? people.find(p => p.Id === project.OwnerId) : null;
+                          const colorClass = person?.Color ? `text-${person.Color}` : 'text-info';
+                          return (
+                            <>
+                              <i className={`fas fa-user me-2 w-16 text-center ${colorClass}`}></i>
+                              {person?.Name || 'No owner'}
+                            </>
+                          );
+                        })()}
                       </div>
                       {project.StartDate && (
                         <div className="mb-1">

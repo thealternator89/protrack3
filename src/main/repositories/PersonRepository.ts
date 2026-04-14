@@ -7,7 +7,7 @@ export class PersonRepository {
     return await db.all('SELECT * FROM Person ORDER BY Name ASC');
   }
 
-  async create(person: { name: string; email: string; color?: string }) {
+  async create(person: { name: string; email: string; color?: Person['Color'] }) {
     const db = getDatabase();
     return await db.run(
       'INSERT INTO Person (Name, Email, Color) VALUES (?, ?, ?)',
@@ -15,7 +15,7 @@ export class PersonRepository {
     );
   }
 
-  async update(person: { id: number; name: string; email: string; color?: string }) {
+  async update(person: { id: number; name: string; email: string; color?: Person['Color'] }) {
     const db = getDatabase();
     return await db.run(
       'UPDATE Person SET Name = ?, Email = ?, Color = ? WHERE Id = ?',

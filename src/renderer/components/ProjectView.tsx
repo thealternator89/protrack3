@@ -294,9 +294,16 @@ const ProjectView: React.FC = () => {
                         </div>
                       </td>
                       <td>
-                        {task.AssigneeName ? (
-                          <span className="badge bg-info text-dark fw-normal d-inline-block text-truncate" style={{ maxWidth: '200px' }}>{task.AssigneeName}</span>
-                        ) : (
+                        {task.AssigneeId ? (() => {
+                          const person = people.find(p => p.Id === task.AssigneeId);
+                          const color = person?.Color || 'info';
+                          const textColor = ['warning', 'light', 'info'].includes(color) ? 'text-dark' : 'text-white';
+                          return (
+                            <span className={`badge bg-${color} ${textColor} fw-normal d-inline-block text-truncate`} style={{ maxWidth: '200px' }}>
+                              {task.AssigneeName}
+                            </span>
+                          );
+                        })() : (
                           <span className="text-muted small italic">Unassigned</span>
                         )}
                       </td>
@@ -356,8 +363,16 @@ const ProjectView: React.FC = () => {
               </div>
               <div className="text-muted small ms-5 d-flex gap-4">
                 <span>
-                  <i className="fas fa-user me-2 text-info"></i>
-                  <strong>Owner:</strong> {people.find(p => p.Id === project.OwnerId)?.Name || 'Not assigned'}
+                  {(() => {
+                    const person = project.OwnerId ? people.find(p => p.Id === project.OwnerId) : null;
+                    const colorClass = person?.Color ? `text-${person.Color}` : 'text-info';
+                    return (
+                      <>
+                        <i className={`fas fa-user me-2 ${colorClass}`}></i>
+                        <strong>Owner:</strong> {person?.Name || 'Not assigned'}
+                      </>
+                    );
+                  })()}
                 </span>
                 <span>
                   <i className="fas fa-calendar-alt me-2 text-primary"></i>
