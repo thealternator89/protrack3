@@ -226,7 +226,7 @@ const TaskView: React.FC = () => {
       if (res.hasEstimation) hasChildrenEstimation = true;
     });
 
-    const effectiveValue = isManualSet ? Math.max(manualValue, childSum) : childSum;
+    const effectiveValue = isManualSet ? manualValue : childSum;
 
     if (!isManualSet) {
       return { 
@@ -238,8 +238,8 @@ const TaskView: React.FC = () => {
       };
     }
 
-    // Manual effort is set. If no children have estimation, don't decorate.
-    if (!hasChildrenEstimation) {
+    // Manual effort is set.
+    if (!hasChildrenEstimation || childSum === 0) {
       return { effectiveValue, manualValue, calculatedValue: childSum, hasChildrenEstimation: false, type: 'manual' };
     }
 
@@ -373,16 +373,11 @@ const TaskView: React.FC = () => {
                           {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
                           {effortInfo.effectiveValue} days
                         </span>
-                        {effortInfo.manualValue !== null && effortInfo.calculatedValue !== null && (
+                        {effortInfo.manualValue !== null && (effortInfo.calculatedValue || 0) > 0 && (
                           <div className="text-muted small ms-2">
-                            {effortInfo.type === 'manual-higher' && (
-                              <span>Subtasks: {effortInfo.calculatedValue}d</span>
-                            )}
-                            {effortInfo.type === 'calculated-higher' && (
-                              <span>Manual: {effortInfo.manualValue}d</span>
-                            )}
+                            <span>Subtasks: {effortInfo.calculatedValue} days</span>
                             {effortInfo.type === 'manual-equal' && (
-                              <span>Matching estimate</span>
+                              <span className="ms-1 text-success small">(Matches)</span>
                             )}
                           </div>
                         )}

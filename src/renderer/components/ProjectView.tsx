@@ -238,6 +238,7 @@ const ProjectView: React.FC = () => {
         return { 
           displayValue: manualEffort,
           contributionValue: manualEffort || 0,
+          calculatedValue: 0,
           hasAnyEstimation: isManualSet,
           type: isManualSet ? 'manual' : 'none' 
         };
@@ -253,28 +254,29 @@ const ProjectView: React.FC = () => {
       });
 
       const contributionValue = isManualSet ? manualEffort : childContributionSum;
-      const displayValue = isManualSet ? Math.max(manualEffort, childContributionSum) : childContributionSum;
+      const displayValue = isManualSet ? manualEffort : childContributionSum;
 
       if (!isManualSet) {
         return { 
           displayValue, 
           contributionValue, 
+          calculatedValue: childContributionSum,
           hasAnyEstimation: childrenHaveEstimation,
           type: displayValue > 0 ? 'calculated' : 'none' 
         };
       }
 
-      // Manual effort is set. If no children have estimation, don't decorate.
-      if (!childrenHaveEstimation) {
-        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'manual' };
+      // Manual effort is set.
+      if (!childrenHaveEstimation || childContributionSum === 0) {
+        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'manual' };
       }
 
       if (manualEffort > childContributionSum) {
-        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'manual-higher' };
+        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'manual-higher' };
       } else if (manualEffort === childContributionSum) {
-        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'manual-equal' };
+        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'manual-equal' };
       } else {
-        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'calculated-higher' };
+        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'calculated-higher' };
       }
     };
 
