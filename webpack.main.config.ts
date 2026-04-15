@@ -21,4 +21,8 @@ export const mainConfig: Configuration = {
     sqlite3: 'commonjs sqlite3',
     'azure-devops-node-api': 'commonjs azure-devops-node-api',
   },
+  target: 'electron-main',
+  node: {
+    __dirname: true,
+  },
 };
