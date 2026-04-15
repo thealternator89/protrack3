@@ -24,6 +24,10 @@ export function registerTaskHandlers() {
     return await taskRepository.update(task);
   });
 
+  ipcMain.handle('update-internal-notes', async (event, { id, notes }) => {
+    return await taskRepository.updateInternalNotes(id, notes);
+  });
+
   ipcMain.handle('add-prerequisite', async (event, { taskId, prerequisiteTaskId, type }) => {
     return await taskRepository.addPrerequisite(taskId, prerequisiteTaskId, type);
   });

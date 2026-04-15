@@ -78,10 +78,11 @@ export class TaskRepository {
     parentId?: number;
     remoteTaskId?: number;
     effort?: number | null;
+    internalNotes?: string | null;
   }) {
     const db = getDatabase();
     return await db.run(
-      'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId, ParentId, RemoteTaskId, Effort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId, ParentId, RemoteTaskId, Effort, InternalNotes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         task.displayId,
         task.title,
@@ -92,7 +93,8 @@ export class TaskRepository {
         task.statusId || null,
         task.parentId || null,
         task.remoteTaskId || null,
-        task.effort ?? null
+        task.effort ?? null,
+        task.internalNotes || null
       ]
     );
   }
@@ -106,10 +108,11 @@ export class TaskRepository {
     parentId?: number;
     remoteTaskId?: number;
     effort?: number | null;
+    internalNotes?: string | null;
   }) {
     const db = getDatabase();
     return await db.run(
-      'UPDATE Task SET Title = ?, Description = ?, AssigneeId = ?, StatusId = ?, ParentId = ?, RemoteTaskId = ?, Effort = ? WHERE Id = ?',
+      'UPDATE Task SET Title = ?, Description = ?, AssigneeId = ?, StatusId = ?, ParentId = ?, RemoteTaskId = ?, Effort = ?, InternalNotes = ? WHERE Id = ?',
       [
         task.title,
         task.description || null,
@@ -118,9 +121,15 @@ export class TaskRepository {
         task.parentId || null,
         task.remoteTaskId || null,
         task.effort ?? null,
+        task.internalNotes || null,
         task.id
       ]
     );
+  }
+
+  async updateInternalNotes(id: number, internalNotes: string | null) {
+    const db = getDatabase();
+    return await db.run('UPDATE Task SET InternalNotes = ? WHERE Id = ?', [internalNotes || null, id]);
   }
 
   async addPrerequisite(taskId: number, prerequisiteTaskId: number, type: string) {

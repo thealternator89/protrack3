@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('tasks', {
     parentId?: number;
     remoteTaskId?: number;
     effort?: number | null;
+    internalNotes?: string | null;
   }) => ipcRenderer.invoke('create-task', task),
   update: (task: { 
     id: number;
@@ -55,7 +56,10 @@ contextBridge.exposeInMainWorld('tasks', {
     parentId?: number;
     remoteTaskId?: number;
     effort?: number | null;
+    internalNotes?: string | null;
   }) => ipcRenderer.invoke('update-task', task),
+  updateInternalNotes: (id: number, notes: string | null) =>
+    ipcRenderer.invoke('update-internal-notes', { id, notes }),
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 
     ipcRenderer.invoke('add-prerequisite', { taskId, prerequisiteTaskId, type }),
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => 

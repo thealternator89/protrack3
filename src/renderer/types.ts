@@ -44,17 +44,20 @@ export interface TasksAPI {
     parentId?: number;
     remoteTaskId?: number;
     effort?: number | null;
+    internalNotes?: string | null;
   }) => Promise<any>;
   update: (task: { 
     id: number;
     title: string; 
     description?: string; 
     assigneeId?: number; 
-    statusId?: number;
-    parentId?: number;
-    remoteTaskId?: number;
+    statusId?: number; 
+    parentId?: number; 
+    remoteTaskId?: number; 
     effort?: number | null;
+    internalNotes?: string | null;
   }) => Promise<any>;
+  updateInternalNotes: (id: number, notes: string | null) => Promise<any>;
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   deletePrerequisite: (taskId: number, prerequisiteTaskId: number) => Promise<any>;
