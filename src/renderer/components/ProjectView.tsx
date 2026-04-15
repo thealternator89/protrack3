@@ -231,31 +231,50 @@ const ProjectView: React.FC = () => {
 
     const getTaskEffort = (task: Task) => {
       const children = tasks.filter(t => t.ParentId === task.Id);
+      const manualEffort = task.Effort;
+      const isManualSet = manualEffort !== null && manualEffort !== undefined;
       
       if (children.length === 0) {
         return { 
-          value: task.Effort, 
-          type: (task.Effort === null || task.Effort === undefined) ? 'none' : 'manual' 
+          displayValue: manualEffort,
+          contributionValue: manualEffort || 0,
+          hasAnyEstimation: isManualSet,
+          type: isManualSet ? 'manual' : 'none' 
         };
       }
 
-      // Recursive sum
-      let childSum = 0;
+      // Recursive sum of contributions
+      let childContributionSum = 0;
+      let childrenHaveEstimation = false;
       children.forEach(child => {
         const result = getTaskEffort(child);
-        childSum += result.value || 0;
+        childContributionSum += result.contributionValue;
+        if (result.hasAnyEstimation) childrenHaveEstimation = true;
       });
 
-      if (task.Effort === null || task.Effort === undefined) {
-        return { value: childSum, type: childSum > 0 ? 'calculated' : 'none' };
+      const contributionValue = isManualSet ? manualEffort : childContributionSum;
+      const displayValue = isManualSet ? Math.max(manualEffort, childContributionSum) : childContributionSum;
+
+      if (!isManualSet) {
+        return { 
+          displayValue, 
+          contributionValue, 
+          hasAnyEstimation: childrenHaveEstimation,
+          type: displayValue > 0 ? 'calculated' : 'none' 
+        };
       }
 
-      if (task.Effort > childSum) {
-        return { value: task.Effort, type: 'manual-higher' };
-      } else if (task.Effort === childSum) {
-        return { value: task.Effort, type: 'manual-equal' };
+      // Manual effort is set. If no children have estimation, don't decorate.
+      if (!childrenHaveEstimation) {
+        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'manual' };
+      }
+
+      if (manualEffort > childContributionSum) {
+        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'manual-higher' };
+      } else if (manualEffort === childContributionSum) {
+        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'manual-equal' };
       } else {
-        return { value: childSum, type: 'calculated-higher' };
+        return { displayValue, contributionValue, hasAnyEstimation: true, type: 'calculated-higher' };
       }
     };
 
@@ -321,7 +340,7 @@ const ProjectView: React.FC = () => {
                             {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
                             {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
                             {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
-                            {effortInfo.value}d
+                            {effortInfo.displayValue}d
                           </span>
                         )}
                       </td>

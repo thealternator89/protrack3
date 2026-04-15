@@ -186,40 +186,69 @@ const TaskView: React.FC = () => {
 
   const getTaskEffort = (targetTask: Task) => {
     const children = projectTasks.filter(t => t.ParentId === targetTask.Id);
-    const manualValue = targetTask.Effort !== undefined ? targetTask.Effort : null;
-    
+    const manualValue = targetTask.Effort !== undefined && targetTask.Effort !== null ? targetTask.Effort : null;
+    const isManualSet = manualValue !== null;
+
+    const calculateRecursive = (t: Task): { sum: number, hasEstimation: boolean } => {
+      // If task has its own defined effort, that's what it contributes to its parent
+      if (t.Effort !== null && t.Effort !== undefined) {
+        return { sum: t.Effort, hasEstimation: true };
+      }
+      // Otherwise, sum of its children's contributions
+      const childTasks = projectTasks.filter(ct => ct.ParentId === t.Id);
+      if (childTasks.length === 0) return { sum: 0, hasEstimation: false };
+      
+      let childSum = 0;
+      let childHasEstimation = false;
+      childTasks.forEach(ct => {
+        const res = calculateRecursive(ct);
+        childSum += res.sum;
+        if (res.hasEstimation) childHasEstimation = true;
+      });
+      return { sum: childSum, hasEstimation: childHasEstimation };
+    };
+
     if (children.length === 0) {
       return { 
         effectiveValue: manualValue,
         manualValue,
         calculatedValue: null,
-        type: manualValue === null ? 'none' : 'manual' 
+        hasChildrenEstimation: false,
+        type: isManualSet ? 'manual' : 'none' 
       };
     }
 
-    const calculateRecursive = (t: Task): number => {
-      const childTasks = projectTasks.filter(ct => ct.ParentId === t.Id);
-      if (childTasks.length === 0) return t.Effort || 0;
-      return childTasks.reduce((sum, child) => sum + calculateRecursive(child), 0);
-    };
+    let childSum = 0;
+    let hasChildrenEstimation = false;
+    children.forEach(child => {
+      const res = calculateRecursive(child);
+      childSum += res.sum;
+      if (res.hasEstimation) hasChildrenEstimation = true;
+    });
 
-    const childSum = children.reduce((sum, child) => sum + calculateRecursive(child), 0);
+    const effectiveValue = isManualSet ? Math.max(manualValue, childSum) : childSum;
 
-    if (manualValue === null) {
+    if (!isManualSet) {
       return { 
-        effectiveValue: childSum, 
+        effectiveValue, 
         manualValue: null,
         calculatedValue: childSum,
-        type: childSum > 0 ? 'calculated' : 'none' 
+        hasChildrenEstimation,
+        type: effectiveValue > 0 ? 'calculated' : 'none' 
       };
+    }
+
+    // Manual effort is set. If no children have estimation, don't decorate.
+    if (!hasChildrenEstimation) {
+      return { effectiveValue, manualValue, calculatedValue: childSum, hasChildrenEstimation: false, type: 'manual' };
     }
 
     if (manualValue > childSum) {
-      return { effectiveValue: manualValue, manualValue, calculatedValue: childSum, type: 'manual-higher' };
+      return { effectiveValue, manualValue, calculatedValue: childSum, type: 'manual-higher' };
     } else if (manualValue === childSum) {
-      return { effectiveValue: manualValue, manualValue, calculatedValue: childSum, type: 'manual-equal' };
+      return { effectiveValue, manualValue, calculatedValue: childSum, type: 'manual-equal' };
     } else {
-      return { effectiveValue: childSum, manualValue, calculatedValue: childSum, type: 'calculated-higher' };
+      return { effectiveValue, manualValue, calculatedValue: childSum, type: 'calculated-higher' };
     }
   };
 
