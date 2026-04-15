@@ -87,4 +87,5 @@ contextBridge.exposeInMainWorld('statusMaps', {
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+  getVersion: () => ipcRenderer.invoke('get-app-version'),
 });

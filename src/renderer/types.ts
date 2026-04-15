@@ -77,6 +77,7 @@ export interface StatusMapsAPI {
 
 export interface ElectronAPI {
   openExternal: (url: string) => Promise<void>;
+  getVersion: () => Promise<string>;
 }
 
 declare global {
