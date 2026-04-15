@@ -1,4 +1,6 @@
-# ProTrack 3
+<p align="center">
+  <img src="assets/logo-full.png" alt="ProTrack 3 Logo">
+</p>
 
 An Electron-based desktop application for Project Management, built with React 19 and TypeScript. ProTrack 3 helps you manage projects, tasks, and team members with a focus on local data persistence and a clean, responsive interface.
 
