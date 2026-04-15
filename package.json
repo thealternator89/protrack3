@@ -40,7 +40,7 @@
     "globals": "^15.15.0",
     "node-loader": "^2.1.0",
     "style-loader": "^3.3.4",
-    "ts-loader": "^9.5.4",
+    "ts-loader": "^9.5.7",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.2"
   },
