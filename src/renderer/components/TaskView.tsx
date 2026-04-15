@@ -50,6 +50,7 @@ const TaskView: React.FC = () => {
   const [prereqType, setPrereqType] = useState('Start');
   const [isProcessingPrereq, setIsProcessingPrereq] = useState(false);
   const [editingPrereq, setEditingPrereq] = useState<TaskPrerequisite | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Delete confirmation state
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
@@ -103,6 +104,21 @@ const TaskView: React.FC = () => {
       effort: data.effort,
     });
     await fetchData();
+  };
+
+  const handleSync = async () => {
+    if (!task || !project?.TaskSourceId || !task.RemoteTaskId || isSyncing) return;
+
+    setIsSyncing(true);
+    try {
+      await window.tasks.importFromSource(project.Id, project.TaskSourceId, task.RemoteTaskId.toString());
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to sync task:', error);
+      alert('Failed to sync task from source.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleAddPrerequisite = async (e: React.FormEvent) => {
@@ -288,13 +304,27 @@ const TaskView: React.FC = () => {
           )}
           <div className="d-flex gap-2">
             {remoteUrl && (
-              <button 
-                className="btn btn-outline-info no-drag"
-                onClick={() => window.electronAPI.openExternal(remoteUrl)}
-                title="View in External Source"
-              >
-                <i className="fas fa-external-link-alt me-1"></i> View
-              </button>
+              <>
+                <button 
+                  className="btn btn-outline-info no-drag"
+                  onClick={() => window.electronAPI.openExternal(remoteUrl)}
+                  title="View in External Source"
+                >
+                  <i className="fas fa-external-link-alt me-1"></i> View
+                </button>
+                <button 
+                  className="btn btn-outline-success no-drag"
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  title="Sync with External Source"
+                >
+                  {isSyncing ? (
+                    <ButtonSpinner label="Syncing..." />
+                  ) : (
+                    <><i className="fas fa-sync-alt me-1"></i> Sync</>
+                  )}
+                </button>
+              </>
             )}
             <button 
               className="btn btn-outline-primary no-drag"

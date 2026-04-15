@@ -169,6 +169,13 @@ export class TaskRepository {
     `, [projectId, displayId]);
   }
 
+  async findByRemoteId(projectId: number, remoteTaskId: number) {
+    const db = getDatabase();
+    return await db.get(`
+      SELECT * FROM Task WHERE ProjectId = ? AND RemoteTaskId = ?
+    `, [projectId, remoteTaskId]);
+  }
+
   async getTaskCountInProject(projectId: number): Promise<number> {
     const db = getDatabase();
     const result = await db.get('SELECT COUNT(*) as count FROM Task WHERE ProjectId = ?', [projectId]);
