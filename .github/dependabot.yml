@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      eslint-packages:
+        patterns:
+          - "eslint*"
+          - "@typescript-eslint/*"
+      react-packages:
+        patterns:
+          - "react*"
+    ignore:
+      - dependency-name: "eslint"
+        versions: [">= 10.0.0"]
+      - dependency-name: "@typescript-eslint/*"
+        versions: [">= 9.0.0"]
+      - dependency-name: "eslint-plugin-import"
+        versions: [">= 3.0.0"]
