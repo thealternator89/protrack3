@@ -41,10 +41,10 @@ The application uses **SQLite** for all persistent storage. The database is init
 ### Database Schema
 
 - **Project**: Tracks high-level project metadata (Title, Prefix, StartDate, DueDate, Owner).
-- **Task**: Main unit of work. Includes hierarchical relationships (`ParentId`), sort order, assignees, and statuses.
+- **Task**: Main unit of work. Includes hierarchical relationships (`ParentId`), sort order, assignees, effort estimates, external descriptions, and private **Internal Notes** (stored locally).
 - **Person**: Directory of team members/assignees with custom display colors.
 - **Status**: Custom workflow statuses, including flags for "New" and "Complete".
-- **TaskSource**: Configuration for external task integrations (e.g., Jira, GitHub).
+- **TaskSource**: Configuration for external task integrations (currently **Azure DevOps**).
 - **TaskPrerequisite**: Many-to-many relationship tracking task dependencies.
 - **StatusMap**: Mapping external source statuses to internal application statuses.
 
