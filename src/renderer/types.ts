@@ -43,6 +43,7 @@ export interface TasksAPI {
     statusId?: number;
     parentId?: number;
     remoteTaskId?: number;
+    effort?: number | null;
   }) => Promise<any>;
   update: (task: { 
     id: number;
@@ -52,6 +53,7 @@ export interface TasksAPI {
     statusId?: number;
     parentId?: number;
     remoteTaskId?: number;
+    effort?: number | null;
   }) => Promise<any>;
   addPrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;
   updatePrerequisite: (taskId: number, prerequisiteTaskId: number, type: string) => Promise<any>;

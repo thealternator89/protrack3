@@ -90,6 +90,7 @@ const ProjectView: React.FC = () => {
       statusId: data.statusId,
       parentId: data.parentId,
       remoteTaskId: data.remoteTaskId,
+      effort: data.effort,
     });
     await fetchData();
   };
@@ -228,6 +229,36 @@ const ProjectView: React.FC = () => {
       setDropTargetId(null);
     };
 
+    const getTaskEffort = (task: Task) => {
+      const children = tasks.filter(t => t.ParentId === task.Id);
+      
+      if (children.length === 0) {
+        return { 
+          value: task.Effort, 
+          type: (task.Effort === null || task.Effort === undefined) ? 'none' : 'manual' 
+        };
+      }
+
+      // Recursive sum
+      let childSum = 0;
+      children.forEach(child => {
+        const result = getTaskEffort(child);
+        childSum += result.value || 0;
+      });
+
+      if (task.Effort === null || task.Effort === undefined) {
+        return { value: childSum, type: childSum > 0 ? 'calculated' : 'none' };
+      }
+
+      if (task.Effort > childSum) {
+        return { value: task.Effort, type: 'manual-higher' };
+      } else if (task.Effort === childSum) {
+        return { value: task.Effort, type: 'manual-equal' };
+      } else {
+        return { value: childSum, type: 'calculated-higher' };
+      }
+    };
+
     return (
       <div className="mb-5">
         {flattenedTasks.length === 0 ? (
@@ -242,6 +273,7 @@ const ProjectView: React.FC = () => {
                   <th style={{ width: '40px' }}></th>
                   <th style={{ width: '80px' }}>ID</th>
                   <th>Title</th>
+                  <th style={{ width: '100px' }} className="text-center">Effort</th>
                   <th style={{ width: '150px' }}>Assignee</th>
                   <th style={{ width: '150px' }} className="text-center">Status</th>
                   <th style={{ width: '50px' }}></th>
@@ -253,6 +285,7 @@ const ProjectView: React.FC = () => {
                   const isPrerequisite = dependentTasks.length > 0 && task.IsComplete !== 1;
                   const isDragged = draggedTaskId === task.Id;
                   const isDropTarget = dropTargetId === task.Id;
+                  const effortInfo = getTaskEffort(task);
 
                   return (
                     <tr 
@@ -278,8 +311,19 @@ const ProjectView: React.FC = () => {
                             <strong>{task.Title}</strong>
                           </Link>
                         </div>
-                        <div className="mt-1">
-                        </div>
+                      </td>
+                      <td className="text-center">
+                        {effortInfo.type === 'none' ? (
+                          <span className="text-muted small">-</span>
+                        ) : (
+                          <span className={`badge rounded-pill bg-light text-dark border fw-normal`}>
+                            {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
+                            {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
+                            {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
+                            {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
+                            {effortInfo.value}d
+                          </span>
+                        )}
                       </td>
                       <td>
                         {task.AssigneeId ? (() => {

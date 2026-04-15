@@ -100,6 +100,7 @@ const TaskView: React.FC = () => {
       statusId: data.statusId,
       parentId: data.parentId,
       remoteTaskId: data.remoteTaskId,
+      effort: data.effort,
     });
     await fetchData();
   };
@@ -183,6 +184,45 @@ const TaskView: React.FC = () => {
     setShowEditPrereqModal(true);
   };
 
+  const getTaskEffort = (targetTask: Task) => {
+    const children = projectTasks.filter(t => t.ParentId === targetTask.Id);
+    const manualValue = targetTask.Effort !== undefined ? targetTask.Effort : null;
+    
+    if (children.length === 0) {
+      return { 
+        effectiveValue: manualValue,
+        manualValue,
+        calculatedValue: null,
+        type: manualValue === null ? 'none' : 'manual' 
+      };
+    }
+
+    const calculateRecursive = (t: Task): number => {
+      const childTasks = projectTasks.filter(ct => ct.ParentId === t.Id);
+      if (childTasks.length === 0) return t.Effort || 0;
+      return childTasks.reduce((sum, child) => sum + calculateRecursive(child), 0);
+    };
+
+    const childSum = children.reduce((sum, child) => sum + calculateRecursive(child), 0);
+
+    if (manualValue === null) {
+      return { 
+        effectiveValue: childSum, 
+        manualValue: null,
+        calculatedValue: childSum,
+        type: childSum > 0 ? 'calculated' : 'none' 
+      };
+    }
+
+    if (manualValue > childSum) {
+      return { effectiveValue: manualValue, manualValue, calculatedValue: childSum, type: 'manual-higher' };
+    } else if (manualValue === childSum) {
+      return { effectiveValue: manualValue, manualValue, calculatedValue: childSum, type: 'manual-equal' };
+    } else {
+      return { effectiveValue: childSum, manualValue, calculatedValue: childSum, type: 'calculated-higher' };
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mt-4">
@@ -246,7 +286,7 @@ const TaskView: React.FC = () => {
             </div>
 
             <div className="row mb-4 pt-3 border-top">
-              <div className={task.ParentId ? "col-md-4" : "col-md-6"}>
+              <div className="col-md-3">
                 <label className="text-muted small text-uppercase fw-bold mb-1">Assignee</label>
                 <div>
                   {task.AssigneeId ? (() => {
@@ -263,7 +303,7 @@ const TaskView: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className={task.ParentId ? "col-md-4" : "col-md-6"}>
+              <div className="col-md-3">
                 <label className="text-muted small text-uppercase fw-bold mb-1">Status</label>
                 <div>
                   {task.StatusLabel && (() => {
@@ -289,16 +329,51 @@ const TaskView: React.FC = () => {
                   })()}
                 </div>
               </div>
-              {task.ParentId && (
-                <div className="col-md-4">
-                  <label className="text-muted small text-uppercase fw-bold mb-1">Parent Task</label>
-                  <div>
+              <div className="col-md-3">
+                <label className="text-muted small text-uppercase fw-bold mb-1">Effort</label>
+                <div>
+                  {(() => {
+                    const effortInfo = getTaskEffort(task);
+                    if (effortInfo.type === 'none') return <span className="text-muted italic">Unestimated</span>;
+                    return (
+                      <div className="d-flex flex-column gap-1">
+                        <span className={`badge rounded-pill bg-light text-dark border fs-6 fw-normal d-inline-block`} style={{ width: 'fit-content' }}>
+                          {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
+                          {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
+                          {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
+                          {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
+                          {effortInfo.effectiveValue} days
+                        </span>
+                        {effortInfo.manualValue !== null && effortInfo.calculatedValue !== null && (
+                          <div className="text-muted small ms-2">
+                            {effortInfo.type === 'manual-higher' && (
+                              <span>Subtasks: {effortInfo.calculatedValue}d</span>
+                            )}
+                            {effortInfo.type === 'calculated-higher' && (
+                              <span>Manual: {effortInfo.manualValue}d</span>
+                            )}
+                            {effortInfo.type === 'manual-equal' && (
+                              <span>Matching estimate</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+              <div className="col-md-3">
+                <label className="text-muted small text-uppercase fw-bold mb-1">Parent Task</label>
+                <div>
+                  {task.ParentId ? (
                     <Link to={`/task/${task.ParentId}`} className="text-decoration-none fw-bold">
                       {task.ParentTitle || `Task #${task.ParentId}`}
                     </Link>
-                  </div>
+                  ) : (
+                    <span className="text-muted italic">None</span>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="mb-4">

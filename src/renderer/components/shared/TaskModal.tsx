@@ -10,6 +10,7 @@ export interface TaskFormData {
   statusId?: number;
   parentId?: number;
   remoteTaskId?: number;
+  effort?: number | null;
 }
 
 interface TaskModalProps {
@@ -42,6 +43,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [statusId, setStatusId] = useState<number | ''>('');
   const [parentId, setParentId] = useState<number | ''>('');
   const [remoteTaskId, setRemoteTaskId] = useState<number | ''>('');
+  const [effort, setEffort] = useState<number | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate descendant IDs to prevent circular parent assignments
@@ -71,6 +73,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         setStatusId(initialData.StatusId || '');
         setParentId(initialData.ParentId || '');
         setRemoteTaskId(initialData.RemoteTaskId || '');
+        setEffort(initialData.Effort !== null && initialData.Effort !== undefined ? initialData.Effort : '');
       } else {
         setTitle('');
         setDescription('');
@@ -80,6 +83,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         setStatusId(newStatus ? newStatus.Id : '');
         setParentId(initialParentId);
         setRemoteTaskId('');
+        setEffort('');
       }
       setIsSubmitting(false);
     }
@@ -98,6 +102,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         statusId: statusId === '' ? undefined : (statusId as number),
         parentId: parentId === '' ? undefined : parentId,
         remoteTaskId: remoteTaskId === '' ? undefined : (remoteTaskId as number),
+        effort: effort === '' ? null : Number(effort),
       });
       onClose();
     } catch (error) {
@@ -149,7 +154,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         />
       </div>
       <div className="row">
-        <div className="col-md-6 mb-3">
+        <div className="col-md-4 mb-3">
           <label htmlFor="taskAssignee" className="form-label">Assignee</label>
           <select
             className="form-select no-drag"
@@ -165,7 +170,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             ))}
           </select>
         </div>
-        <div className="col-md-6 mb-3">
+        <div className="col-md-4 mb-3">
           <label htmlFor="taskStatus" className="form-label">Status</label>
           <select
             className="form-select no-drag"
@@ -180,6 +185,19 @@ const TaskModal: React.FC<TaskModalProps> = ({
               </option>
             ))}
           </select>
+        </div>
+        <div className="col-md-4 mb-3">
+          <label htmlFor="taskEffort" className="form-label">Effort (Days)</label>
+          <input
+            type="number"
+            className="form-control no-drag"
+            id="taskEffort"
+            placeholder="Unestimated"
+            step="1"
+            min="0"
+            value={effort}
+            onChange={(e) => setEffort(e.target.value === '' ? '' : Number(e.target.value))}
+          />
         </div>
       </div>
       <div className="row">

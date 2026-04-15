@@ -77,10 +77,11 @@ export class TaskRepository {
     statusId?: number;
     parentId?: number;
     remoteTaskId?: number;
+    effort?: number | null;
   }) {
     const db = getDatabase();
     return await db.run(
-      'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId, ParentId, RemoteTaskId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO Task (DisplayId, Title, ProjectId, SortOrder, Description, AssigneeId, StatusId, ParentId, RemoteTaskId, Effort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         task.displayId,
         task.title,
@@ -90,7 +91,8 @@ export class TaskRepository {
         task.assigneeId || null,
         task.statusId || null,
         task.parentId || null,
-        task.remoteTaskId || null
+        task.remoteTaskId || null,
+        task.effort ?? null
       ]
     );
   }
@@ -103,10 +105,11 @@ export class TaskRepository {
     statusId?: number;
     parentId?: number;
     remoteTaskId?: number;
+    effort?: number | null;
   }) {
     const db = getDatabase();
     return await db.run(
-      'UPDATE Task SET Title = ?, Description = ?, AssigneeId = ?, StatusId = ?, ParentId = ?, RemoteTaskId = ? WHERE Id = ?',
+      'UPDATE Task SET Title = ?, Description = ?, AssigneeId = ?, StatusId = ?, ParentId = ?, RemoteTaskId = ?, Effort = ? WHERE Id = ?',
       [
         task.title,
         task.description || null,
@@ -114,6 +117,7 @@ export class TaskRepository {
         task.statusId || null,
         task.parentId || null,
         task.remoteTaskId || null,
+        task.effort ?? null,
         task.id
       ]
     );

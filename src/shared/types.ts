@@ -33,6 +33,7 @@ export interface Task {
   StatusId: number | null;
   ParentId: number | null;
   RemoteTaskId: number | null;
+  Effort: number | null;
   // Joined fields
   AssigneeName?: string;
   StatusLabel?: string;
