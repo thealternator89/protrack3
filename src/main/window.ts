@@ -15,11 +15,11 @@ export const createWindow = (): BrowserWindow => {
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     titleBarStyle: 'hidden',
     titleBarOverlay: process.platform === 'win32' ? {
-      color: '#212529',
+      color: '#087ca3',
       symbolColor: '#ffffff',
       height: 44
     } : false,
-    trafficLightPosition: { x: 15, y: 15 }, // Adjusted for 44px height
+    trafficLightPosition: { x: 15, y: 15 },
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },

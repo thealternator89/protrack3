@@ -10,7 +10,7 @@ const App: React.FC = () => {
     <Router>
       <div className="titlebar shadow-sm">
         <span className="titlebar-content">
-          <i className="fas fa-tools me-2 text-primary"></i>
+          <i className="fas fa-arrow-trend-up me-2 text-light"></i>
           ProTrack 3
         </span>
       </div>
