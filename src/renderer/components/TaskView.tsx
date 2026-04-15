@@ -252,6 +252,10 @@ const TaskView: React.FC = () => {
     }
   };
 
+  const childTasks = useMemo(() => {
+    return projectTasks.filter(t => t.ParentId === task?.Id);
+  }, [projectTasks, task]);
+
   if (loading) {
     return (
       <div className="container mt-4">
@@ -443,7 +447,7 @@ const TaskView: React.FC = () => {
               </div>
               
               {prerequisites.length > 0 ? (
-                <div className="list-group shadow-sm">
+                <div className="list-group shadow-sm mb-4">
                   {prerequisites.map((prereq) => (
                     <div key={prereq.PrerequisiteTaskId} className="list-group-item d-flex justify-content-between align-items-center">
                       <div className="d-flex align-items-center flex-grow-1">
@@ -472,8 +476,97 @@ const TaskView: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-muted italic p-2 border rounded bg-light small">
+                <div className="text-muted italic p-2 border rounded bg-light small mb-4">
                   No prerequisites defined for this task.
+                </div>
+              )}
+
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h4 className="mb-0">Child Tasks</h4>
+              </div>
+
+              {childTasks.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle border shadow-sm rounded" style={{ tableLayout: 'fixed' }}>
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ width: '80px' }}>ID</th>
+                        <th>Title</th>
+                        <th style={{ width: '100px' }} className="text-center">Effort</th>
+                        <th style={{ width: '150px' }}>Assignee</th>
+                        <th style={{ width: '150px' }} className="text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {childTasks.map(child => {
+                        const effortInfo = getTaskEffort(child);
+                        return (
+                          <tr key={child.Id}>
+                            <td className="text-muted small fw-bold">
+                              {project ? `${project.Prefix}-${child.DisplayId}` : child.DisplayId}
+                            </td>
+                            <td className="text-truncate">
+                              <Link to={`/task/${child.Id}`} className="text-decoration-none text-dark">
+                                <strong>{child.Title}</strong>
+                              </Link>
+                            </td>
+                            <td className="text-center">
+                              {effortInfo.type === 'none' ? (
+                                <span className="text-muted small">-</span>
+                              ) : (
+                                <span className="badge rounded-pill bg-light text-dark border fw-normal">
+                                  {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
+                                  {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
+                                  {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
+                                  {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
+                                  {effortInfo.effectiveValue}d
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              {child.AssigneeId ? (() => {
+                                const person = people.find(p => p.Id === child.AssigneeId);
+                                const color = person?.Color || 'info';
+                                const textColor = ['warning', 'light', 'info'].includes(color) ? 'text-dark' : 'text-white';
+                                return (
+                                  <span className={`badge bg-${color} ${textColor} fw-normal d-inline-block text-truncate`} style={{ maxWidth: '200px' }}>
+                                    {child.AssigneeName}
+                                  </span>
+                                );
+                              })() : (
+                                <span className="text-muted small italic">Unassigned</span>
+                              )}
+                            </td>
+                            <td className="text-center">
+                              {child.StatusLabel ? (() => {
+                                const status = statuses.find(s => s.Id === child.StatusId);
+                                const isNew = !!status?.IsNew;
+                                
+                                let color = 'secondary';
+                                if (child.IsComplete) {
+                                  color = 'success';
+                                } else if (isNew) {
+                                  color = 'info';
+                                }
+
+                                return (
+                                  <span className={`badge rounded-pill bg-${color} fw-normal d-inline-block text-truncate`}>
+                                    {child.StatusLabel}
+                                  </span>
+                                );
+                              })() : (
+                                <span className="text-muted small italic">No status</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-muted italic p-2 border rounded bg-light small">
+                  No child tasks for this task.
                 </div>
               )}
             </div>
