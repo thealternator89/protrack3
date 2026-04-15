@@ -79,19 +79,33 @@ export class AzureDevOpsService {
             }
           }
 
-          maxDisplayId++;
-          maxSortOrder += 10;
+          const existingTask = await taskRepository.findByRemoteId(projectId, remoteTaskId);
+          if (existingTask) {
+            await taskRepository.update({
+              id: existingTask.Id,
+              title,
+              description: description || null,
+              assigneeId,
+              statusId,
+              remoteTaskId,
+              parentId: existingTask.ParentId,
+              effort: existingTask.Effort
+            });
+          } else {
+            maxDisplayId++;
+            maxSortOrder += 10;
 
-          await taskRepository.create({
-            displayId: maxDisplayId,
-            title,
-            projectId,
-            sortOrder: maxSortOrder,
-            description: description || null,
-            assigneeId,
-            statusId,
-            remoteTaskId
-          });
+            await taskRepository.create({
+              displayId: maxDisplayId,
+              title,
+              projectId,
+              sortOrder: maxSortOrder,
+              description: description || null,
+              assigneeId,
+              statusId,
+              remoteTaskId
+            });
+          }
         }
         await db.run('COMMIT');
       } catch (innerError) {
