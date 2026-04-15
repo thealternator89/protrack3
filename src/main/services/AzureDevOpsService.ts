@@ -89,7 +89,8 @@ export class AzureDevOpsService {
               statusId,
               remoteTaskId,
               parentId: existingTask.ParentId,
-              effort: existingTask.Effort
+              effort: existingTask.Effort,
+              internalNotes: existingTask.InternalNotes
             });
           } else {
             maxDisplayId++;

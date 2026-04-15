@@ -51,6 +51,10 @@ const TaskView: React.FC = () => {
   const [isProcessingPrereq, setIsProcessingPrereq] = useState(false);
   const [editingPrereq, setEditingPrereq] = useState<TaskPrerequisite | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [internalNotes, setInternalNotes] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [lastSavedNotes, setLastSavedNotes] = useState('');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Delete confirmation state
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false);
@@ -62,6 +66,8 @@ const TaskView: React.FC = () => {
       const data = await window.tasks.get(Number(id));
       if (data && data.task) {
         setTask(data.task);
+        setInternalNotes(data.task.InternalNotes || '');
+        setLastSavedNotes(data.task.InternalNotes || '');
         setPrerequisites(data.prerequisites);
         setDependedOnBy(data.dependedOnBy || []);
         const [projectData, peopleData, statusData, projectTasksData, taskSourcesData] = await Promise.all([
@@ -119,6 +125,28 @@ const TaskView: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleInternalNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    setInternalNotes(newValue);
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setIsSavingNotes(true);
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (!id || !task) return;
+      try {
+        await window.tasks.updateInternalNotes(Number(id), newValue);
+        setLastSavedNotes(newValue);
+      } catch (error) {
+        console.error('Failed to autosave notes:', error);
+      } finally {
+        setIsSavingNotes(false);
+      }
+    }, 1000);
   };
 
   const handleAddPrerequisite = async (e: React.FormEvent) => {
@@ -460,6 +488,25 @@ const TaskView: React.FC = () => {
                 ) : (
                   <span className="text-muted italic">No description provided.</span>
                 )}
+              </div>
+
+              <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <label className="text-muted small text-uppercase fw-bold mb-0">Internal Notes</label>
+                  {isSavingNotes ? (
+                    <span className="text-muted small italic"><i className="fas fa-spinner fa-spin me-1"></i> Saving...</span>
+                  ) : (
+                    internalNotes !== lastSavedNotes && <span className="text-muted small italic">Unsaved changes</span>
+                  )}
+                </div>
+                <textarea
+                  className="form-control no-drag bg-white"
+                  rows={4}
+                  placeholder="Add private notes, implementation details, etc. (Autosaves)"
+                  value={internalNotes}
+                  onChange={handleInternalNotesChange}
+                  style={{ borderStyle: 'dashed' }}
+                />
               </div>
 
               <div className="d-flex justify-content-between align-items-center mb-2">

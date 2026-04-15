@@ -34,6 +34,7 @@ export interface Task {
   ParentId: number | null;
   RemoteTaskId: number | null;
   Effort: number | null;
+  InternalNotes: string | null;
   // Joined fields
   AssigneeName?: string;
   StatusLabel?: string;

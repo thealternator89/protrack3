@@ -9,7 +9,9 @@ An Electron-based desktop application for Project Management, built with React 1
 - **Project Management**: Create and track multiple projects with custom prefixes, start dates, and due dates.
 - **Task Management**: Comprehensive task tracking with descriptions, assignees, and statuses.
 - **Task Hierarchy**: Organize work by nesting tasks within one another.
-- **Dependency Tracking**: Manage task prerequisites and track what tasks are blocked by others.
+- **Task Dependency Tracking**: Manage task prerequisites and track what tasks are blocked by others.
+- **Internal Notes**: Maintain private, autosaving markdown notes for each task, separate from the external description.
+- **Azure DevOps Integration**: Import tasks from Azure DevOps and keep them synchronized with a single click.
 - **People & Team Management**: Maintain a directory of team members with custom profile colors for easy identification.
 - **Customizable Statuses**: Define your own workflow with custom statuses and identify which ones represent "New" or "Complete" states.
 - **Local Persistence**: All data is stored locally in a SQLite database, ensuring privacy and offline availability.
