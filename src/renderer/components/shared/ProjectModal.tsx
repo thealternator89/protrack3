@@ -32,9 +32,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
   const [ownerId, setOwnerId] = useState<number | ''>('');
   const [taskSourceId, setTaskSourceId] = useState<number | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (show) {
+      setError(null);
       if (initialData) {
         setTitle(initialData.Title || '');
         setPrefix(initialData.Prefix || '');
@@ -59,6 +61,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
     if (!title.trim() || !prefix.trim()) return;
 
     setIsSubmitting(true);
+    setError(null);
     try {
       await onSave({
         title,
@@ -69,9 +72,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         taskSourceId: taskSourceId === '' ? undefined : taskSourceId,
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save project:', error);
-      alert('Error saving project. Please try again.');
+      const message = error.message || 'Error saving project. Please try again.';
+      setError(message.replace('Error invoking remote method \'create-project\': Error: ', '').replace('Error invoking remote method \'update-project\': Error: ', ''));
     } finally {
       setIsSubmitting(false);
     }
@@ -93,6 +97,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
         </>
       }
     >
+      {error && (
+        <div className="alert alert-danger py-2 mb-3" role="alert">
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          {error}
+        </div>
+      )}
       <div className="row g-3">
         <div className="col-md-9 mb-3">
           <label htmlFor="projectTitle" className="form-label">Project Title</label>

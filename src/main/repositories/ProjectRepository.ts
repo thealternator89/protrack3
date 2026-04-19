@@ -12,19 +12,36 @@ export class ProjectRepository {
     return await db.all('SELECT * FROM Project ORDER BY Title ASC');
   }
 
+  async getByPrefix(prefix: string): Promise<Project | undefined> {
+    const db = getDatabase();
+    return await db.get('SELECT * FROM Project WHERE UPPER(Prefix) = UPPER(?)', [prefix]);
+  }
+
   async create(project: { title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number; taskSourceId?: number }) {
+    const normalizedPrefix = project.prefix.toUpperCase();
+    const existing = await this.getByPrefix(normalizedPrefix);
+    if (existing) {
+      throw new Error(`Project with prefix "${normalizedPrefix}" already exists.`);
+    }
+
     const db = getDatabase();
     return await db.run(
       'INSERT INTO Project (Title, Prefix, StartDate, DueDate, OwnerId, TaskSourceId) VALUES (?, ?, ?, ?, ?, ?)',
-      [project.title, project.prefix, project.startDate || null, project.dueDate || null, project.ownerId || null, project.taskSourceId || null]
+      [project.title, normalizedPrefix, project.startDate || null, project.dueDate || null, project.ownerId || null, project.taskSourceId || null]
     );
   }
 
   async update(project: { id: number; title: string; prefix: string; startDate?: string; dueDate?: string; ownerId?: number; taskSourceId?: number }) {
+    const normalizedPrefix = project.prefix.toUpperCase();
+    const existing = await this.getByPrefix(normalizedPrefix);
+    if (existing && existing.Id !== project.id) {
+      throw new Error(`Project with prefix "${normalizedPrefix}" already exists.`);
+    }
+
     const db = getDatabase();
     return await db.run(
       'UPDATE Project SET Title = ?, Prefix = ?, StartDate = ?, DueDate = ?, OwnerId = ?, TaskSourceId = ? WHERE Id = ?',
-      [project.title, project.prefix, project.startDate || null, project.dueDate || null, project.ownerId || null, project.taskSourceId || null, project.id]
+      [project.title, normalizedPrefix, project.startDate || null, project.dueDate || null, project.ownerId || null, project.taskSourceId || null, project.id]
     );
   }
 }
