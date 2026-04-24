@@ -228,33 +228,21 @@ const TaskView: React.FC = () => {
     setShowEditPrereqModal(true);
   };
 
-  const getTaskEffort = (targetTask: Task) => {
+  const getTaskEffort = (targetTask: Task): any => {
     const children = projectTasks.filter(t => t.ParentId === targetTask.Id);
     const manualValue = targetTask.Effort !== undefined && targetTask.Effort !== null ? targetTask.Effort : null;
     const isManualSet = manualValue !== null;
 
-    const calculateRecursive = (t: Task): { sum: number, hasEstimation: boolean } => {
-      // If task has its own defined effort, that's what it contributes to its parent
-      if (t.Effort !== null && t.Effort !== undefined) {
-        return { sum: t.Effort, hasEstimation: true };
-      }
-      // Otherwise, sum of its children's contributions
-      const childTasks = projectTasks.filter(ct => ct.ParentId === t.Id);
-      if (childTasks.length === 0) return { sum: 0, hasEstimation: false };
-      
-      let childSum = 0;
-      let childHasEstimation = false;
-      childTasks.forEach(ct => {
-        const res = calculateRecursive(ct);
-        childSum += res.sum;
-        if (res.hasEstimation) childHasEstimation = true;
-      });
-      return { sum: childSum, hasEstimation: childHasEstimation };
-    };
-
     if (children.length === 0) {
+      const effectiveValue = manualValue || 0;
+      const completedContribution = targetTask.IsComplete === 1 ? effectiveValue : 0;
       return { 
         effectiveValue: manualValue,
+        contributionValue: effectiveValue,
+        completedContribution,
+        completedDisplayValue: 0,
+        allChildrenComplete: true,
+        hasChildren: false,
         manualValue,
         calculatedValue: null,
         hasChildrenEstimation: false,
@@ -263,36 +251,51 @@ const TaskView: React.FC = () => {
     }
 
     let childSum = 0;
+    let childCompletedSum = 0;
     let hasChildrenEstimation = false;
+    let allDirectChildrenComplete = true;
+
     children.forEach(child => {
-      const res = calculateRecursive(child);
-      childSum += res.sum;
-      if (res.hasEstimation) hasChildrenEstimation = true;
+      const res = getTaskEffort(child);
+      childSum += res.contributionValue;
+      childCompletedSum += res.completedContribution;
+      if (res.hasChildrenEstimation || (child.Effort !== null && child.Effort !== undefined)) hasChildrenEstimation = true;
+      if (!child.IsComplete) allDirectChildrenComplete = false;
     });
 
     const effectiveValue = isManualSet ? manualValue : childSum;
+    const completedContribution = targetTask.IsComplete === 1 ? effectiveValue : 0;
+
+    const common = {
+      effectiveValue,
+      contributionValue: effectiveValue,
+      completedContribution,
+      completedDisplayValue: childCompletedSum,
+      allChildrenComplete: allDirectChildrenComplete,
+      hasChildren: true,
+      manualValue,
+      calculatedValue: childSum,
+      hasChildrenEstimation,
+    };
 
     if (!isManualSet) {
       return { 
-        effectiveValue, 
-        manualValue: null,
-        calculatedValue: childSum,
-        hasChildrenEstimation,
+        ...common,
         type: effectiveValue > 0 ? 'calculated' : 'none' 
       };
     }
 
     // Manual effort is set.
     if (!hasChildrenEstimation || childSum === 0) {
-      return { effectiveValue, manualValue, calculatedValue: childSum, hasChildrenEstimation: false, type: 'manual' };
+      return { ...common, type: 'manual' };
     }
 
     if (manualValue > childSum) {
-      return { effectiveValue, manualValue, calculatedValue: childSum, type: 'manual-higher' };
+      return { ...common, type: 'manual-higher' };
     } else if (manualValue === childSum) {
-      return { effectiveValue, manualValue, calculatedValue: childSum, type: 'manual-equal' };
+      return { ...common, type: 'manual-equal' };
     } else {
-      return { effectiveValue, manualValue, calculatedValue: childSum, type: 'calculated-higher' };
+      return { ...common, type: 'calculated-higher' };
     }
   };
 
@@ -423,18 +426,30 @@ const TaskView: React.FC = () => {
               <div className="col-md-3">
                 <label className="text-muted small text-uppercase fw-bold mb-1">Effort</label>
                 <div>
-                  {(() => {
-                    const effortInfo = getTaskEffort(task);
-                    if (effortInfo.type === 'none') return <span className="text-muted italic">Unestimated</span>;
-                    return (
-                      <div className="d-flex flex-column gap-1">
-                        <span className={`badge rounded-pill bg-light text-dark border fs-6 fw-normal d-inline-block`} style={{ width: 'fit-content' }}>
-                          {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
-                          {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
-                          {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
-                          {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
-                          {effortInfo.effectiveValue} days
-                        </span>
+                    {(() => {
+                      const effortInfo = getTaskEffort(task);
+                      if (effortInfo.type === 'none') return <span className="text-muted italic">Unestimated</span>;
+                      const isStruckThrough = effortInfo.hasChildren ? effortInfo.allChildrenComplete : task.IsComplete === 1;
+                      return (
+                        <div className="d-flex flex-column gap-1">
+                          <span className={`badge rounded-pill bg-light text-dark border fs-6 fw-normal d-inline-block`} style={{ width: 'fit-content' }}>
+                            {!isStruckThrough && (
+                              <>
+                                {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
+                                {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
+                                {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
+                                {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
+                              </>
+                            )}
+                            
+                            {isStruckThrough ? (
+                              <del>{effortInfo.effectiveValue} days</del>
+                            ) : effortInfo.hasChildren && (effortInfo.completedDisplayValue || 0) > 0 ? (
+                              <span>{effortInfo.completedDisplayValue} / {effortInfo.effectiveValue} days</span>
+                            ) : (
+                              <span>{effortInfo.effectiveValue} days</span>
+                            )}
+                          </span>
                         {effortInfo.manualValue !== null && (effortInfo.calculatedValue || 0) > 0 && (
                           <div className="text-muted small ms-2">
                             <span>Subtasks: {effortInfo.calculatedValue} days</span>
@@ -590,15 +605,29 @@ const TaskView: React.FC = () => {
                             <td className="text-center">
                               {effortInfo.type === 'none' ? (
                                 <span className="text-muted small">-</span>
-                              ) : (
-                                <span className="badge rounded-pill bg-light text-dark border fw-normal">
-                                  {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
-                                  {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
-                                  {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
-                                  {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
-                                  {effortInfo.effectiveValue}d
-                                </span>
-                              )}
+                              ) : (() => {
+                                const isStruckThrough = effortInfo.hasChildren ? effortInfo.allChildrenComplete : child.IsComplete === 1;
+                                return (
+                                  <span className="badge rounded-pill bg-light text-dark border fw-normal">
+                                    {!isStruckThrough && (
+                                      <>
+                                        {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
+                                        {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
+                                        {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
+                                        {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
+                                      </>
+                                    )}
+
+                                    {isStruckThrough ? (
+                                      <del>{effortInfo.effectiveValue}d</del>
+                                    ) : effortInfo.hasChildren && (effortInfo.completedDisplayValue || 0) > 0 ? (
+                                      <span>{effortInfo.completedDisplayValue}d / {effortInfo.effectiveValue}d</span>
+                                    ) : (
+                                      <span>{effortInfo.effectiveValue}d</span>
+                                    )}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td>
                               {child.AssigneeId ? (() => {

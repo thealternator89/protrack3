@@ -235,9 +235,15 @@ const ProjectView: React.FC = () => {
       const isManualSet = manualEffort !== null && manualEffort !== undefined;
       
       if (children.length === 0) {
+        const effectiveValue = manualEffort || 0;
+        const completedContribution = task.IsComplete === 1 ? effectiveValue : 0;
         return { 
           displayValue: manualEffort,
-          contributionValue: manualEffort || 0,
+          contributionValue: effectiveValue,
+          completedContribution,
+          completedDisplayValue: 0,
+          allChildrenComplete: true,
+          hasChildren: false,
           calculatedValue: 0,
           hasAnyEstimation: isManualSet,
           type: isManualSet ? 'manual' : 'none' 
@@ -246,37 +252,51 @@ const ProjectView: React.FC = () => {
 
       // Recursive sum of contributions
       let childContributionSum = 0;
+      let childCompletedSum = 0;
       let childrenHaveEstimation = false;
+      let allDirectChildrenComplete = true;
+
       children.forEach(child => {
         const result = getTaskEffort(child);
         childContributionSum += result.contributionValue;
+        childCompletedSum += result.completedContribution;
         if (result.hasAnyEstimation) childrenHaveEstimation = true;
+        if (!child.IsComplete) allDirectChildrenComplete = false;
       });
 
       const contributionValue = isManualSet ? manualEffort : childContributionSum;
       const displayValue = isManualSet ? manualEffort : childContributionSum;
+      const completedContribution = task.IsComplete === 1 ? contributionValue : 0;
+
+      const common = {
+        displayValue,
+        contributionValue,
+        completedContribution,
+        completedDisplayValue: childCompletedSum,
+        allChildrenComplete: allDirectChildrenComplete,
+        hasChildren: true,
+        calculatedValue: childContributionSum,
+        hasAnyEstimation: childrenHaveEstimation || isManualSet,
+      };
 
       if (!isManualSet) {
         return { 
-          displayValue, 
-          contributionValue, 
-          calculatedValue: childContributionSum,
-          hasAnyEstimation: childrenHaveEstimation,
+          ...common,
           type: displayValue > 0 ? 'calculated' : 'none' 
         };
       }
 
       // Manual effort is set.
       if (!childrenHaveEstimation || childContributionSum === 0) {
-        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'manual' };
+        return { ...common, type: 'manual' };
       }
 
       if (manualEffort > childContributionSum) {
-        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'manual-higher' };
+        return { ...common, type: 'manual-higher' };
       } else if (manualEffort === childContributionSum) {
-        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'manual-equal' };
+        return { ...common, type: 'manual-equal' };
       } else {
-        return { displayValue, contributionValue, calculatedValue: childContributionSum, hasAnyEstimation: true, type: 'calculated-higher' };
+        return { ...common, type: 'calculated-higher' };
       }
     };
 
@@ -336,15 +356,29 @@ const ProjectView: React.FC = () => {
                       <td className="text-center">
                         {effortInfo.type === 'none' ? (
                           <span className="text-muted small">-</span>
-                        ) : (
-                          <span className={`badge rounded-pill bg-light text-dark border fw-normal`}>
-                            {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
-                            {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
-                            {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
-                            {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
-                            {effortInfo.displayValue}d
-                          </span>
-                        )}
+                        ) : (() => {
+                          const isStruckThrough = effortInfo.hasChildren ? effortInfo.allChildrenComplete : task.IsComplete === 1;
+                          return (
+                            <span className={`badge rounded-pill bg-light text-dark border fw-normal`}>
+                              {!isStruckThrough && (
+                                <>
+                                  {effortInfo.type === 'calculated' && <i className="fas fa-calculator me-1 text-muted" title="Sum of subtasks"></i>}
+                                  {effortInfo.type === 'manual-higher' && <i className="fas fa-arrow-up me-1 text-warning" title="Manual override (higher than subtasks)"></i>}
+                                  {effortInfo.type === 'manual-equal' && <i className="fas fa-equals me-1 text-muted" title="Manual estimate matches subtask total (consider removing manual estimate)"></i>}
+                                  {effortInfo.type === 'calculated-higher' && <i className="fas fa-arrow-down me-1 text-info" title="Subtask sum is higher than manual estimate"></i>}
+                                </>
+                              )}
+                              
+                              {isStruckThrough ? (
+                                <del>{effortInfo.displayValue}d</del>
+                              ) : effortInfo.hasChildren && (effortInfo.completedDisplayValue || 0) > 0 ? (
+                                <span>{effortInfo.completedDisplayValue}d / {effortInfo.displayValue}d</span>
+                              ) : (
+                                <span>{effortInfo.displayValue}d</span>
+                              )}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td>
                         {task.AssigneeId ? (() => {
