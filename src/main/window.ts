@@ -10,8 +10,8 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 export const createWindow = (): BrowserWindow => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    height: 600,
-    width: 800,
+    height: 850,
+    width: 1400,
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     titleBarStyle: 'hidden',
     titleBarOverlay: process.platform === 'win32' ? {
